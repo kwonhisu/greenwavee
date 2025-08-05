@@ -946,6 +946,10 @@ function dragOver(event) {
 
 function dragDrop(event) {
   event.preventDefault();
+  
+  // 게임이 종료되었으면 처리하지 않음
+  if (!dragGameActive) return;
+  
   const draggedType = event.dataTransfer.getData('text/plain');
   const binType = event.currentTarget.dataset.type;
   
@@ -959,8 +963,10 @@ function dragDrop(event) {
     // 정답인 쓰레기를 하늘에서 제거
     if (currentDraggedElement) {
       const index = parseInt(currentDraggedElement.dataset.index);
-      fallingTrashItems.splice(index, 1);
-      renderFallingTrash();
+      if (index >= 0 && index < fallingTrashItems.length) {
+        fallingTrashItems.splice(index, 1);
+        renderFallingTrash();
+      }
       
       // 점수에 따라 게임 속도 증가
       if (dragGameScore % 5 === 0) {
@@ -1005,20 +1011,30 @@ function showDragGameStartScreen() {
 }
 
 function dragGameStart() {
+  // 게임 상태 완전 초기화
+  dragGameActive = false; // 먼저 비활성화
+  if (fallingInterval) clearInterval(fallingInterval);
+  
   showDragGameStartScreen();
   document.getElementById('dragGameStartScreen').style.display = 'none';
   document.getElementById('dragGameMain').style.display = '';
+  
+  // 게임 변수 초기화
   dragGameScore = 0;
   dragGameLives = 3;
   dragGameActive = true;
   gameSpeed = 1; // 게임 속도 초기화
   fallingTrashItems = [];
+  
+  // UI 초기화
   renderDragBins();
   renderFallingTrash();
   updateDragGameUI();
   
+  // 결과 메시지 초기화
+  document.getElementById('dragGameResult').innerHTML = '';
+  
   // 떨어지는 쓰레기 생성 시작 (간격을 2초에서 1.5초로 단축)
-  if (fallingInterval) clearInterval(fallingInterval);
   fallingInterval = setInterval(createFallingTrash, 1500);
 }
 
@@ -1081,17 +1097,21 @@ setInterval(updateFallingTrash, 50);
 // 모바일 터치 이벤트 지원
 function addTouchSupport() {
   let draggedElement = null;
+  let touchProcessed = false; // 터치 중복 처리 방지
   
   document.addEventListener('touchstart', function(e) {
-    if (e.target.classList.contains('falling-trash-item')) {
+    if (e.target.classList.contains('falling-trash-item') && dragGameActive) {
       draggedElement = e.target;
       e.target.style.opacity = '0.5';
       currentDraggedElement = e.target; // 드래그 요소 추적
+      touchProcessed = false; // 터치 처리 플래그 초기화
     }
   });
   
   document.addEventListener('touchend', function(e) {
-    if (draggedElement && e.target.closest('.drag-bin')) {
+    if (draggedElement && e.target.closest('.drag-bin') && !touchProcessed && dragGameActive) {
+      touchProcessed = true; // 중복 처리 방지
+      
       const bin = e.target.closest('.drag-bin');
       const draggedType = draggedElement.dataset.type;
       const binType = bin.dataset.type;
@@ -1105,8 +1125,10 @@ function addTouchSupport() {
         
         // 정답인 쓰레기를 하늘에서 제거
         const index = parseInt(draggedElement.dataset.index);
-        fallingTrashItems.splice(index, 1);
-        renderFallingTrash();
+        if (index >= 0 && index < fallingTrashItems.length) {
+          fallingTrashItems.splice(index, 1);
+          renderFallingTrash();
+        }
         
         // 점수에 따라 게임 속도 증가
         if (dragGameScore % 5 === 0) {
@@ -1124,9 +1146,15 @@ function addTouchSupport() {
         dragGameOver();
       }
       
+      // 드래그 요소 정리
       draggedElement.style.opacity = '1';
       draggedElement = null;
       currentDraggedElement = null;
+      
+      // 잠시 후 터치 처리 플래그 초기화 (중복 방지)
+      setTimeout(() => {
+        touchProcessed = false;
+      }, 100);
     }
   });
 }
@@ -1596,8 +1624,23 @@ function stopRunnerGame() {
 }
 
 function dragGameOver() {
+    // 게임 완전 종료
     dragGameActive = false;
-    if (fallingInterval) clearInterval(fallingInterval);
+    
+    // 인터벌 정리
+    if (fallingInterval) {
+        clearInterval(fallingInterval);
+        fallingInterval = null;
+    }
+    
+    // 떨어지는 쓰레기 모두 제거
+    fallingTrashItems = [];
+    renderFallingTrash();
+    
+    // 결과 메시지 표시
+    document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>게임 종료! 최종 점수: ${dragGameScore}점</span>`;
+    
+    // 점수 저장 및 결과 표시
     saveGameRecord('recycle', dragGameScore);
     showGameResults('recycle');
 }
