@@ -1,6 +1,10 @@
-const { getStore, setStore } = require('@netlify/functions');
+// 간단한 메모리 기반 저장소 (실제로는 Netlify KV나 다른 저장소 사용 권장)
+let users = [];
+let scores = [];
 
 exports.handler = async (event, context) => {
+  console.log('API 호출됨:', event.httpMethod, event.path);
+  
   // CORS 헤더 설정
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -41,9 +45,6 @@ exports.handler = async (event, context) => {
           };
         }
 
-        // 기존 사용자 목록 가져오기
-        const users = await getStore('users') || [];
-        
         // 중복 체크
         const existingUser = users.find(u => u.nickname === nickname || u.phone === phone);
         
@@ -62,7 +63,6 @@ exports.handler = async (event, context) => {
         };
 
         users.push(newUser);
-        await setStore('users', users);
         
         return {
           statusCode: 200,
@@ -87,7 +87,6 @@ exports.handler = async (event, context) => {
           };
         }
 
-        const users = await getStore('users') || [];
         const user = users.find(u => u.nickname === nickname && u.phone === phone);
         
         if (!user) {
@@ -121,8 +120,6 @@ exports.handler = async (event, context) => {
           };
         }
 
-        const scores = await getStore('scores') || [];
-        
         const scoreRecord = {
           nickname,
           gameType,
@@ -131,7 +128,6 @@ exports.handler = async (event, context) => {
         };
 
         scores.push(scoreRecord);
-        await setStore('scores', scores);
         
         return {
           statusCode: 200,
@@ -143,8 +139,6 @@ exports.handler = async (event, context) => {
 
     // GET 요청 처리
     if (httpMethod === 'GET') {
-      const scores = await getStore('scores') || [];
-
       // 특정 사용자 점수 조회
       if (endpoint === 'scores' && param) {
         const userScores = scores.filter(s => s.nickname === param);
@@ -197,9 +191,7 @@ exports.handler = async (event, context) => {
 
     // DELETE 요청 처리
     if (httpMethod === 'DELETE' && endpoint === 'scores' && param) {
-      const scores = await getStore('scores') || [];
-      const filteredScores = scores.filter(s => s.nickname !== param);
-      await setStore('scores', filteredScores);
+      scores = scores.filter(s => s.nickname !== param);
       
       return {
         statusCode: 200,
