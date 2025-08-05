@@ -1,3 +1,28 @@
+// API 서버 URL
+const API_BASE_URL = 'http://localhost:3001/api';
+
+// 서버 연결 상태 확인
+let serverAvailable = false;
+
+// 서버 연결 테스트
+async function testServerConnection() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/scores`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    serverAvailable = response.ok;
+  } catch (error) {
+    serverAvailable = false;
+    console.log('서버 연결 불가 - localStorage 사용');
+  }
+}
+
+// 페이지 로드 시 서버 연결 테스트
+testServerConnection();
+
 // ... greeeen/fb의 <script> 태그 안에 있는 모든 JS 코드 복사 ...
 // (환경게임, 모달, 섹션 전환, 뉴스 데이터 등 전체) 
 
@@ -1124,7 +1149,7 @@ function saveUsers(users) {
 }
 
 // 회원가입 처리
-function handleSignup(event) {
+async function handleSignup(event) {
   event.preventDefault();
   const nickname = document.getElementById('signupNickname').value.trim();
   const phone = document.getElementById('signupPhone').value.trim();
@@ -1132,19 +1157,45 @@ function handleSignup(event) {
     alert('닉네임과 전화번호를 모두 입력하세요.');
     return;
   }
-  let users = getUsers();
-  if (users.find(u => u.nickname === nickname)) {
-    alert('이미 사용 중인 닉네임입니다.');
-    return;
+  
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nickname, phone })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('회원가입이 완료되었습니다! 이제 로그인 해주세요.');
+        showLoginTab();
+      } else {
+        alert(data.error || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  } else {
+    // localStorage fallback
+    let users = getUsers();
+    if (users.find(u => u.nickname === nickname)) {
+      alert('이미 사용 중인 닉네임입니다.');
+      return;
+    }
+    users.push({ nickname, phone });
+    saveUsers(users);
+    alert('회원가입이 완료되었습니다! 이제 로그인 해주세요.');
+    showLoginTab();
   }
-  users.push({ nickname, phone });
-  saveUsers(users);
-  alert('회원가입이 완료되었습니다! 이제 로그인 해주세요.');
-  showLoginTab();
 }
 
 // 로그인 처리
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const nickname = document.getElementById('loginNickname').value.trim();
   const phone = document.getElementById('loginPhone').value.trim();
@@ -1152,18 +1203,48 @@ function handleLogin(event) {
     alert('닉네임과 전화번호를 모두 입력하세요.');
     return;
   }
-  let users = getUsers();
-  const user = users.find(u => u.nickname === nickname && u.phone === phone);
-  if (!user) {
-    alert('닉네임 또는 전화번호가 올바르지 않습니다.');
-    return;
+  
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nickname, phone })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        currentUser = data.user;
+        closeLoginModal();
+        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+        document.getElementById('userInfoBtn').classList.remove('hidden');
+        document.getElementById('loginBtn').classList.add('hidden');
+        showSection('home');
+      } else {
+        alert(data.error || '로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  } else {
+    // localStorage fallback
+    let users = getUsers();
+    const user = users.find(u => u.nickname === nickname && u.phone === phone);
+    if (!user) {
+      alert('닉네임 또는 전화번호가 올바르지 않습니다.');
+      return;
+    }
+    currentUser = { nickname, phone };
+    closeLoginModal();
+    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+    document.getElementById('userInfoBtn').classList.remove('hidden');
+    document.getElementById('loginBtn').classList.add('hidden');
+    showSection('home');
   }
-  currentUser = { nickname, phone };
-  closeLoginModal();
-  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-  document.getElementById('userInfoBtn').classList.remove('hidden');
-  document.getElementById('loginBtn').classList.add('hidden');
-  showSection('home');
 }
 
 // 로그인/회원가입 탭 전환
@@ -1272,7 +1353,7 @@ function loadGameRecords() {
 }
 
 // 게임 기록 저장하기
-function saveGameRecord(gameType, score) {
+async function saveGameRecord(gameType, score) {
   if (!currentUser) return;
   
   const record = {
@@ -1282,18 +1363,44 @@ function saveGameRecord(gameType, score) {
     timestamp: Date.now()
   };
   
-  gameRecords[gameType].push(record);
+  // 로컬 저장 (항상 실행)
+  if (!gameRecords[gameType]) {
+    gameRecords[gameType] = [];
+  }
   
-  // 최고 점수 순으로 정렬
+  gameRecords[gameType].push(record);
   gameRecords[gameType].sort((a, b) => b.score - a.score);
   
-  // 각 게임별로 상위 50개 기록만 유지
   if (gameRecords[gameType].length > 50) {
     gameRecords[gameType] = gameRecords[gameType].slice(0, 50);
   }
   
-  // localStorage에 저장
   localStorage.setItem('gameRecords', JSON.stringify(gameRecords));
+  
+  // 서버 저장 (서버가 있을 때만)
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          nickname: currentUser.nickname, 
+          gameType, 
+          score 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to save score to server:', data.error);
+      }
+    } catch (error) {
+      console.error('Save score to server error:', error);
+    }
+  }
 }
 
 // 사용자별 게임 기록 가져오기
@@ -1639,6 +1746,81 @@ window.addEventListener('DOMContentLoaded', () => {
     // 로그인 버튼 이벤트
     document.getElementById('loginBtn').onclick = openLoginModal;
     
+    // 모바일 버튼 동기화
+    syncMobileLoginButtons();
+    
     // 터치 지원 추가
     addTouchSupport();
+    
+    // 모바일 메뉴 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        if (mobileMenu && !mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+            hideMobileMenu();
+        }
+    });
 });
+
+// 모바일 메뉴 토글 기능
+function toggleMobileMenu() {
+  const mobileMenu = document.getElementById('mobileMenu');
+  mobileMenu.classList.toggle('hidden');
+}
+
+function hideMobileMenu() {
+  const mobileMenu = document.getElementById('mobileMenu');
+  mobileMenu.classList.add('hidden');
+}
+
+// 모바일 로그인 버튼 동기화
+function syncMobileLoginButtons() {
+  const loginBtn = document.getElementById('loginBtn');
+  const loginBtnMobile = document.getElementById('loginBtnMobile');
+  const userInfoBtn = document.getElementById('userInfoBtn');
+  const userInfoBtnMobile = document.getElementById('userInfoBtnMobile');
+  
+  if (loginBtn && loginBtnMobile) {
+    loginBtnMobile.onclick = () => loginBtn.click();
+  }
+  
+  if (userInfoBtn && userInfoBtnMobile) {
+    userInfoBtnMobile.textContent = userInfoBtn.textContent;
+    userInfoBtnMobile.classList.toggle('hidden', userInfoBtn.classList.contains('hidden'));
+  }
+}
+
+// 로그인 성공 시 모바일 버튼도 업데이트
+function handleLogin(event) {
+  event.preventDefault();
+  const nickname = document.getElementById('loginNickname').value.trim();
+  const phone = document.getElementById('loginPhone').value.trim();
+  if (!nickname || !phone) {
+    alert('닉네임과 전화번호를 모두 입력하세요.');
+    return;
+  }
+  let users = getUsers();
+  const user = users.find(u => u.nickname === nickname && u.phone === phone);
+  if (!user) {
+    alert('닉네임 또는 전화번호가 올바르지 않습니다.');
+    return;
+  }
+  currentUser = { nickname, phone };
+  closeLoginModal();
+  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+  document.getElementById('userInfoBtn').classList.remove('hidden');
+  document.getElementById('loginBtn').classList.add('hidden');
+  
+  // 모바일 버튼도 업데이트
+  const userInfoBtnMobile = document.getElementById('userInfoBtnMobile');
+  const loginBtnMobile = document.getElementById('loginBtnMobile');
+  if (userInfoBtnMobile) {
+    userInfoBtnMobile.textContent = currentUser.nickname;
+    userInfoBtnMobile.classList.remove('hidden');
+  }
+  if (loginBtnMobile) {
+    loginBtnMobile.classList.add('hidden');
+  }
+  
+  showSection('home');
+}
