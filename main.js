@@ -1,5 +1,5 @@
-// API 서버 URL
-const API_BASE_URL = 'http://localhost:3001/api';
+// API 서버 URL (Netlify 배포 시 자동으로 현재 도메인 사용)
+const API_BASE_URL = window.location.origin + '/api';
 
 // 서버 연결 상태 확인
 let serverAvailable = false;
@@ -14,6 +14,7 @@ async function testServerConnection() {
       }
     });
     serverAvailable = response.ok;
+    console.log('서버 연결 성공:', serverAvailable);
   } catch (error) {
     serverAvailable = false;
     console.log('서버 연결 불가 - localStorage 사용');
@@ -1195,23 +1196,55 @@ async function handleSignup(event) {
     return;
   }
   
-  // localStorage 사용 (서버 없이도 작동)
-  let users = getUsers();
-  if (users.find(u => u.nickname === nickname)) {
-    alert('이미 사용 중인 닉네임입니다.');
-    return;
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nickname, phone })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
+        showLoginTab();
+      } else {
+        alert(data.error || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  } else {
+    // localStorage fallback
+    let users = getUsers();
+    
+    // 닉네임 중복 체크
+    if (users.find(u => u.nickname === nickname)) {
+      alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
+      return;
+    }
+    
+    // 전화번호 중복 체크
+    if (users.find(u => u.phone === phone)) {
+      alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
+      return;
+    }
+    
+    // 새 사용자 추가
+    users.push({ 
+      nickname, 
+      phone,
+      createdAt: new Date().toISOString()
+    });
+    saveUsers(users);
+    
+    alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
+    showLoginTab();
   }
-  
-  // 새 사용자 추가
-  users.push({ 
-    nickname, 
-    phone,
-    createdAt: new Date().toISOString()
-  });
-  saveUsers(users);
-  
-  alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
-  showLoginTab();
 }
 
 // 로그인 처리
@@ -1224,23 +1257,75 @@ async function handleLogin(event) {
     return;
   }
   
-  // localStorage 사용 (서버 없이도 작동)
-  let users = getUsers();
-  const user = users.find(u => u.nickname === nickname && u.phone === phone);
-  if (!user) {
-    alert('닉네임 또는 전화번호가 올바르지 않습니다.');
-    return;
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nickname, phone })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        currentUser = data.user;
+        
+        // 로그인 상태 저장
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        
+        closeLoginModal();
+        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+        document.getElementById('userInfoBtn').classList.remove('hidden');
+        document.getElementById('loginBtn').classList.add('hidden');
+        showSection('home');
+        
+        // 모바일 버튼도 동기화
+        syncMobileLoginButtons();
+      } else {
+        alert(data.error || '로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  } else {
+    // localStorage fallback
+    let users = getUsers();
+    const user = users.find(u => u.nickname === nickname && u.phone === phone);
+    if (!user) {
+      // 더 자세한 오류 메시지 제공
+      const nicknameExists = users.find(u => u.nickname === nickname);
+      const phoneExists = users.find(u => u.phone === phone);
+      
+      if (!nicknameExists && !phoneExists) {
+        alert('등록되지 않은 계정입니다.\n회원가입을 먼저 해주세요.');
+        showSignupTab();
+      } else if (nicknameExists && !phoneExists) {
+        alert('전화번호가 일치하지 않습니다.\n정확한 전화번호를 입력해주세요.');
+      } else if (!nicknameExists && phoneExists) {
+        alert('닉네임이 일치하지 않습니다.\n정확한 닉네임을 입력해주세요.');
+      } else {
+        alert('닉네임과 전화번호가 일치하지 않습니다.\n정확한 정보를 입력해주세요.');
+      }
+      return;
+    }
+    
+    currentUser = { nickname, phone };
+    
+    // 로그인 상태 저장
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
+    closeLoginModal();
+    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+    document.getElementById('userInfoBtn').classList.remove('hidden');
+    document.getElementById('loginBtn').classList.add('hidden');
+    showSection('home');
+    
+    // 모바일 버튼도 동기화
+    syncMobileLoginButtons();
   }
-  
-  currentUser = { nickname, phone };
-  closeLoginModal();
-  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-  document.getElementById('userInfoBtn').classList.remove('hidden');
-  document.getElementById('loginBtn').classList.add('hidden');
-  showSection('home');
-  
-  // 모바일 버튼도 동기화
-  syncMobileLoginButtons();
 }
 
 // 로그인/회원가입 탭 전환
@@ -1271,7 +1356,46 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // 모바일 로그인 버튼 동기화
     syncMobileLoginButtons();
+    
+    // 현재 로그인 상태 확인
+    checkLoginStatus();
+    
+    // 테스트용 더미 데이터 추가 (개발 중에만 사용)
+    // addDummyData();
 });
+
+// 현재 로그인 상태 확인
+function checkLoginStatus() {
+  const savedUser = localStorage.getItem('currentUser');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      // 사용자가 여전히 존재하는지 확인
+      const users = getUsers();
+      const userExists = users.find(u => 
+        u.nickname === currentUser.nickname && u.phone === currentUser.phone
+      );
+      
+      if (userExists) {
+        // 로그인 상태 복원
+        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+        document.getElementById('userInfoBtn').classList.remove('hidden');
+        document.getElementById('loginBtn').classList.add('hidden');
+        syncMobileLoginButtons();
+      } else {
+        // 사용자가 삭제된 경우 로그아웃
+        localStorage.removeItem('currentUser');
+        currentUser = null;
+      }
+    } catch (error) {
+      console.error('로그인 상태 복원 실패:', error);
+      localStorage.removeItem('currentUser');
+      currentUser = null;
+    }
+  }
+}
+
+
 
 // currentUser에서 name 관련 코드 모두 제거, 회원정보 모달 등도 nickname/phone만 사용
 
@@ -1327,10 +1451,17 @@ function closeLoginModal() {
 
 // 로그아웃
 function logout() {
-  window.currentUser = null;
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  
   document.getElementById('userInfoBtn').classList.add('hidden');
   document.getElementById('loginBtn').classList.remove('hidden');
   closeUserInfoModal();
+  
+  // 모바일 버튼도 동기화
+  syncMobileLoginButtons();
+  
+  alert('로그아웃되었습니다.');
 }
 
 
@@ -1362,7 +1493,7 @@ async function saveGameRecord(gameType, score) {
     timestamp: Date.now()
   };
   
-  // localStorage 저장 (서버 없이도 작동)
+  // localStorage 저장 (캐시용)
   if (!gameRecords[gameType]) {
     gameRecords[gameType] = [];
   }
@@ -1375,6 +1506,31 @@ async function saveGameRecord(gameType, score) {
   }
   
   localStorage.setItem('gameRecords', JSON.stringify(gameRecords));
+  
+  // 서버 저장 (서버가 있을 때만)
+  if (serverAvailable) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          nickname: currentUser.nickname, 
+          gameType, 
+          score 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to save score to server:', data.error);
+      }
+    } catch (error) {
+      console.error('Save score to server error:', error);
+    }
+  }
 }
 
 // 사용자별 게임 기록 가져오기
@@ -1384,7 +1540,13 @@ function getUserGameRecords(nickname, gameType) {
 
 // 전체 게임 기록 가져오기 (상위 10개)
 function getTopGameRecords(gameType, limit = 10) {
-  return gameRecords[gameType].slice(0, limit);
+  if (!gameRecords[gameType]) return [];
+  
+  // 모든 기록을 점수 순으로 정렬
+  const allRecords = [...gameRecords[gameType]].sort((a, b) => b.score - a.score);
+  
+  // 상위 기록만 반환
+  return allRecords.slice(0, limit);
 }
 
 // 사용자의 최고 점수 가져오기
@@ -1469,7 +1631,12 @@ function showGameResults(gameType) {
     const bestScore = Math.max(...userRecords.map(r => r.score));
     const avgScore = Math.round(userRecords.reduce((sum, r) => sum + r.score, 0) / userRecords.length);
     const totalGames = userRecords.length;
-    const userRank = topRecords.findIndex(r => r.nickname === currentUser.nickname) + 1;
+    
+    // 전체 순위에서 현재 사용자의 최고 기록 찾기
+    const userBestRecord = userRecords.sort((a, b) => b.score - a.score)[0];
+    const userRank = topRecords.findIndex(r => 
+      r.nickname === currentUser.nickname && r.score === userBestRecord.score
+    ) + 1;
     
     html += `
       <div class="border-t pt-4">
