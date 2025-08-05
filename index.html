@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greenwave - 지속 가능한 미래를 위한 솔루션</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="bg-white border-b border-neutral-200 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-emerald-900">Greenwave</a>
+            <div class="flex space-x-6 items-center">
+                <a href="#" onclick="showSection('home')" class="text-neutral-900 hover:text-emerald-900 px-3 py-2 rounded transition">홈</a>
+                <a href="#" onclick="showSection('games')" class="text-neutral-900 hover:text-emerald-900 px-3 py-2 rounded transition">환경게임</a>
+                <a href="#" onclick="showSection('news')" class="text-neutral-900 hover:text-emerald-900 px-3 py-2 rounded transition">환경뉴스</a>
+                <a href="#" onclick="showSection('about')" class="text-neutral-900 hover:text-emerald-900 px-3 py-2 rounded transition">소개글</a>
+                <button id="loginBtn" class="ml-4 px-3 py-2 rounded bg-emerald-100 text-emerald-900 font-bold">로그인/회원가입</button>
+                <button id="userInfoBtn" class="ml-4 px-3 py-2 rounded bg-emerald-100 text-emerald-900 font-bold hidden" onclick="openUserInfoModal()">닉네임</button>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Login/Signup Screen (default hidden) -->
+    <div id="loginScreen" class="fixed inset-0 bg-emerald-900 flex items-center justify-center z-50" style="display:none;">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex mb-6 justify-center gap-4">
+                <button id="loginTabBtn" class="minimal-btn bg-emerald-900 text-white" onclick="showLoginTab()">로그인</button>
+                <button id="signupTabBtn" class="minimal-btn bg-emerald-100 text-emerald-900" onclick="showSignupTab()">회원가입</button>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">닉네임</label>
+                    <input type="text" id="loginNickname" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">전화번호 (비밀번호)</label>
+                    <input type="tel" id="loginPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="010-1234-5678">
+                </div>
+                <button type="submit" class="w-full bg-emerald-900 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition">로그인</button>
+            </form>
+            <form id="signupForm" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">닉네임</label>
+                    <input type="text" id="signupNickname" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">전화번호 (비밀번호)</label>
+                    <input type="tel" id="signupPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="010-1234-5678">
+                </div>
+                <button type="submit" class="w-full bg-emerald-900 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition">회원가입</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="main-content-wrapper" class="px-4">
+        <!-- Home Section -->
+        <section id="home" class="bg-neutral-50 py-20 px-4 text-center rounded-lg mx-auto mt-8 max-w-6xl">
+            <div class="container mx-auto">
+                <h1 class="text-5xl font-extrabold mb-4 leading-tight text-emerald-900" style="text-shadow:6px 12px 32px #d2fad6,0 4px 0 #fff;">Greenwave: 지속 가능한 미래를 향한 파도</h1>
+                <p class="text-xl mb-8 text-neutral-700" style="margin-top:4rem;margin-bottom:4rem;color:#555555;font-style:italic;">“ 환경 보호와 기술 혁신을 결합하여 더 나은 세상을 만듭니다. ”</p>
+                <div class="max-w-2xl mx-auto mb-8">
+                  <p class="about-desc text-lg text-neutral-900" style="text-align:left;">
+                    지속가능한 환경을 위해 활동하는 <b>GREENWAVE 팀</b> 입니다. 
+                    저희는 서울시자원봉사센터와 함께,
+                    시민 여러분과 함께하는 친환경 실천 문화를 만들어가고 있습니다.
+                    <br/> <br/> <br/>
+                    <b>GREENWAVE 팀은</b> 
+                    일상 속에서 누구나 쉽게 실천할 수 있는 친환경 행동을 제안하며, <br/>
+                    청년들의 자발적인 참여를 유도하고 있습니다.<br/>
+                    <br/> <br/> <br/>
+                    게임 형식의 재미있는 웹 콘텐츠를 통해<br/>
+                    환경 문제를 쉽고 재미있게 배우고,<br/>
+                    오는 8월에 열릴 오프라인 팝업스토어에서는 <br/>
+                    직접 환경 보호 활동에 참여하실 수도 있습니다.<br/>
+                    <br/> <br/> <br/>
+                    지속가능한 미래를 위한 작은 실천, <br/> 
+                    저희와 함께 시작해보세요.<br/>
+                    많은 관심과 참여 부탁드립니다! 🌿<br/>
+                    <br/> <br/> <br/>
+                    <div class="text-center mt-6">
+                      <a href="https://www.instagram.com/green_w_ave/" target="_blank" class="inline-flex items-center text-emerald-700 hover:text-emerald-900 font-semibold transition-colors">
+                        <span class="text-2xl mr-2">🌿</span>
+                        <span>@green_w_ave</span>
+                        <span class="ml-1 text-sm">→</span>
+                      </a>
+                    </div>
+                    <br/> <br/> <br/>
+
+                
+                  </p>
+                </div>
+                <a href="#games" onclick="showSection('games')" class="bg-emerald-900 text-white font-bold py-3 px-8 rounded-full hover:bg-emerald-700 transition">재미있는 환경 게임 즐기기!</a>
+            </div>
+        </section>
+        <!-- Games Section -->
+        <section id="games" class="bg-neutral-50 py-16 px-4 rounded-lg mx-auto mt-8 max-w-6xl hidden">
+            <div class="container mx-auto">
+                <h2 class="text-4xl font-bold mb-10 text-center text-emerald-900">재미있는 환경 게임</h2>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- 퀴즈 게임 카드 -->
+                    <div class="minimal-card w-full">
+                        <h3 class="text-2xl font-semibold text-emerald-900 mb-2">에코 퀴즈</h3>
+                        <p class="text-neutral-700 mb-4">환경 상식 퀴즈에 도전해보세요!</p>
+                        <button class="minimal-btn" onclick="openQuizModal()">퀴즈 시작</button>
+                    </div>
+                    <!-- 분리수거 게임 카드 -->
+                    <div class="minimal-card w-full">
+                        <h3 class="text-2xl font-semibold text-emerald-900 mb-2">분리수거 게임</h3>
+                        <p class="text-neutral-700 mb-4">쓰레기를 올바른 통에 드래그&드롭!</p>
+                        <button class="minimal-btn" onclick="openRecycleModal()">게임 시작</button>
+                    </div>
+                    <!-- 2048 환경 쓰레기 게임 카드 -->
+                    <div class="minimal-card w-full">
+                        <h3 class="text-2xl font-semibold text-emerald-900 mb-2">2048 환경 쓰레기</h3>
+                        <p class="text-neutral-700 mb-4">같은 쓰레기를 합쳐 더 큰 쓰레기를 만들어보세요!</p>
+                        <button class="minimal-btn" onclick="openGame2048Modal()">게임 시작</button>
+                    </div>
+                    <!-- 달리기 환경 게임 카드 -->
+                    <div class="minimal-card w-full">
+                        <h3 class="text-2xl font-semibold text-emerald-900 mb-2">쓰레기를 피해라!</h3>
+                        <p class="text-neutral-700 mb-4">떨어지는 쓰레기를 피해 좌우로 이동하세요!</p>
+                        <button class="minimal-btn" onclick="openRunnerGameModal()">게임 시작</button>
+                    </div>
+                </div>
+            </div>
+            <!-- 퀴즈 모달 -->
+            <div id="quizModal" class="modal-overlay hidden">
+                <div class="modal-content">
+                    <span class="modal-close-button" onclick="closeQuizModal()">&times;</span>
+                    <h2 class="text-2xl font-bold text-emerald-900 mb-4">에코 퀴즈</h2>
+                    <div id="quizArea">
+                        <!-- JS로 문제/선택지/피드백 표시 -->
+                    </div>
+                </div>
+            </div>
+            <!-- 2048 환경 쓰레기 게임 모달 -->
+            <div id="game2048Modal" class="modal-overlay hidden">
+                <div class="modal-content" style="width: 420px; max-width: 98vw;">
+                    <span class="modal-close-button" onclick="closeGame2048Modal()">&times;</span>
+                    <h2 class="text-2xl font-bold text-emerald-900 mb-2">2048 환경 쓰레기</h2>
+                    <div class="mb-2 text-neutral-700 text-sm">방향키(←↑→↓)로 카드를 이동해 같은 쓰레기를 합치세요.<br>2048점에 도전!</div>
+                    <div class="mb-2 text-lg font-bold text-emerald-900">점수: <span id="game2048Score">0</span></div>
+                    <div id="game2048Grid" style="display:grid;grid-template-columns:repeat(4,60px);grid-gap:8px;justify-content:center;margin-bottom:1rem;"></div>
+                    <div id="game2048Result" class="text-center mb-2"></div>
+                    <div class="flex justify-center gap-2 mt-2 md:hidden" id="game2048MobileBtns">
+                        <button class="minimal-btn" style="width:48px;" ontouchstart="game2048Mobile('up')">↑</button>
+                        <button class="minimal-btn" style="width:48px;" ontouchstart="game2048Mobile('left')">←</button>
+                        <button class="minimal-btn" style="width:48px;" ontouchstart="game2048Mobile('down')">↓</button>
+                        <button class="minimal-btn" style="width:48px;" ontouchstart="game2048Mobile('right')">→</button>
+                    </div>
+                    <button class="minimal-btn mt-2" onclick="startGame2048()">다시하기</button>
+                </div>
+            </div>
+            <!-- 달리기 환경 게임 모달 -->
+            <div id="runnerGameModal" class="modal-overlay hidden">
+                <div class="modal-content" style="width: 420px; max-width: 98vw;">
+                    <span class="modal-close-button" onclick="closeRunnerGameModal()">&times;</span>
+                    <h3 class="text-2xl font-bold mb-2 text-emerald-900">쓰레기를 피해라!</h3>
+                    <div class="mb-2 text-neutral-700 text-sm">좌우 방향키(←→)로 캐릭터를 움직여 장애물을 피하고 쓰레기를 모으세요!</div>
+                    <div class="mb-2 text-lg font-bold text-emerald-900">점수: <span id="runnerGameScore">0</span> <span id="runnerGameLives" class="ml-4 text-2xl"></span></div>
+                    <div id="runnerGameArea" style="position:relative;width:320px;height:320px;background:#f6f6f6;border-radius:1rem;border:1px solid #e5e7eb;overflow:hidden;margin:0 auto 1rem auto;"></div>
+                    <div class="flex justify-center gap-4 mt-2 md:hidden" id="runnerGameMobileBtns">
+                        <button class="minimal-btn" style="width:60px;" ontouchstart="runnerMobileLeft()">←</button>
+                        <button class="minimal-btn" style="width:60px;" ontouchstart="runnerMobileJump()">↑</button>
+                        <button class="minimal-btn" style="width:60px;" ontouchstart="runnerMobileRight()">→</button>
+                    </div>
+                    <div id="runnerGameResult" class="text-center mb-2"></div>
+                    <button class="minimal-btn mt-2" onclick="startRunnerGame()">다시하기</button>
+                </div>
+            </div>
+            <!-- 분리수거 드래그&드롭 게임 모달 -->
+            <div id="recycleModal" class="modal-overlay hidden">
+                <div class="modal-content" style="width: 600px; max-width: 98vw;">
+                    <span class="modal-close-button" onclick="closeRecycleModal()">&times;</span>
+                    <h2 class="text-2xl font-bold text-emerald-900 mb-4">분리수거 드래그&드롭</h2>
+                    <div id="dragRecycleGame" style="width:100%;">
+                        <div id="dragGameStartScreen" class="flex flex-col items-center justify-center" style="min-height:400px;">
+                            <p class="text-lg text-neutral-700 mb-4">하늘에서 떨어지는 쓰레기를 올바른 통에 드래그해서 넣어보세요!</p>
+                            <button class="minimal-btn mt-8" onclick="dragGameStart()">게임 시작</button>
+                        </div>
+                        <div id="dragGameMain" style="display:none;">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-lg font-bold text-emerald-900">점수: <span id="dragGameScore">0</span></div>
+                                <div id="dragGameLives" class="text-2xl select-none">♥♥♥</div>
+                            </div>
+                            <!-- 떨어지는 쓰레기 영역 -->
+                            <div id="fallingTrashArea" class="falling-trash-area mb-4" style="position:relative;width:100%;height:300px;background:#f6f6f6;border-radius:1rem;border:1.5px solid #e5e7eb;overflow:hidden;">
+                                <!-- 떨어지는 쓰레기들이 여기에 렌더링됨 -->
+                                <div id="fallingTrashLayer" style="position:absolute;left:0;top:0;width:100%;height:100%;z-index:2;"></div>
+                            </div>
+                            <!-- 쓰레기통 영역 -->
+                            <div id="dragBinsArea" class="drag-bins-area grid grid-cols-3 gap-4 mb-4">
+                                <!-- JS로 쓰레기통들 렌더링 -->
+                            </div>
+                            <div id="dragGameResult" class="mt-4 text-center"></div>
+                            <button class="minimal-btn mt-2 w-full" onclick="dragGameStart()">다시하기</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- News Section -->
+        <section id="news" class="bg-neutral-50 py-16 px-4 rounded-lg mx-auto mt-8 max-w-6xl hidden">
+            <div class="container mx-auto">
+                <h2 class="text-4xl font-bold mb-10 text-center text-emerald-900">환경 뉴스</h2>
+                <div id="newsListArea"></div>
+                <div id="newsDetailModal" class="news-detail-modal hidden"></div>
+            </div>
+        </section>
+        <!-- About Section -->
+        <section id="about" class="bg-neutral-50 py-16 px-4 rounded-lg mx-auto mt-8 max-w-6xl hidden">
+            <div class="container mx-auto text-center">
+                <h2 class="text-4xl font-bold mb-10 text-emerald-900 section-title" style="font-style:italic; font-family:'Pretendard','Inter',sans-serif; font-weight:800; font-size:3.19rem;">“ Greenwave는 어떤 팀인가요? ”</h2>
+                <p class="text-lg text-neutral-900 leading-relaxed mb-4 about-desc">
+                    지속가능한 환경을 위해 활동하는 <b>GREENWAVE 팀</b> 입니다. 
+                    저희는 서울시자원봉사센터와 함께,
+                    시민 여러분과 함께하는 친환경 실천 문화를 만들어가고 있습니다.
+                    <br/> <br/> <br/>
+                    <b>GREENWAVE 팀은</b> 
+                    일상 속에서 누구나 쉽게 실천할 수 있는 친환경 행동을 제안하며, <br/>
+                    청년들의 자발적인 참여를 유도하고 있습니다.<br/>
+                    <br/> <br/> <br/>
+                    게임 형식의 재미있는 웹 콘텐츠를 통해<br/>
+                    환경 문제를 쉽고 재미있게 배우고,<br/>
+                    오는 8월에 열릴 오프라인 팝업스토어에서는 <br/>
+                    직접 환경 보호 활동에 참여하실 수도 있습니다.<br/>
+                    <br/> <br/> <br/>
+                    지속가능한 미래를 위한 작은 실천, <br/> 
+                    저희와 함께 시작해보세요.<br/>
+                    많은 관심과 참여 부탁드립니다! 🌿<br/>
+                    <br/> <br/> <br/> 
+                    
+                
+                </p>
+                <div class="flex flex-wrap justify-center gap-2 mt-6">
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#그린웨이브</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#Greenwave</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#친환경파도</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#친환경파도물결</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#지속가능한한걸음</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#MZ환경챌린지</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#환경참여의현장</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#서울시자원봉사센터</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#서울청년동행기획</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#서울동행</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#청년환경프로젝트</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#지구를위한도전</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#환경을위한리워드</span>
+                  <span class="inline-block" style="background:#e1ece0;color:#166534;font-weight:600;padding:0.25rem 0.75rem;border-radius:999px;font-size:0.95rem;">#환경실천챌린지</span>
+                </div>
+            </div>
+        </section>
+    </div>
+    <footer class="bg-neutral-900 text-white py-8 mt-8 rounded-t-lg">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2025 Greenwave. All rights reserved.</p>
+            <div class="flex justify-center space-x-6 mt-4">
+                <a href="#" class="text-neutral-400 hover:text-white transition">개인정보처리방침</a>
+                <a href="#" class="text-neutral-400 hover:text-white transition">이용약관</a>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Game Results Modal -->
+    <div id="gameResultsModal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 500px; max-width: 98vw;">
+            <span class="modal-close-button" onclick="closeGameResultsModal()">&times;</span>
+            <h2 class="text-2xl font-bold text-emerald-900 mb-4">게임 결과</h2>
+            <div id="gameResultsContent">
+                <!-- JS로 결과 내용 렌더링 -->
+            </div>
+            <div id="gameResultsBtnArea" class="mt-6 text-center"></div>
+        </div>
+    </div>
+    
+    <!-- User Info Modal -->
+    <div id="userInfoModal" class="modal-overlay hidden">
+        <div class="modal-content" style="width: 420px; max-width: 98vw;">
+            <span class="modal-close-button" onclick="closeUserInfoModal()">&times;</span>
+            <h2 class="text-2xl font-bold text-emerald-900 mb-2">회원 정보</h2>
+            <div id="userInfoContent" class="mb-4"></div>
+            <div class="mb-2">
+                <div class="flex gap-2 mb-2">
+                    <button class="user-record-tab minimal-btn user-record-tab-btn" data-game="quiz">에코 퀴즈</button>
+                    <button class="user-record-tab minimal-btn user-record-tab-btn" data-game="recycle">분리수거</button>
+                    <button class="user-record-tab minimal-btn user-record-tab-btn" data-game="game2048">2048</button>
+                    <button class="user-record-tab minimal-btn user-record-tab-btn" data-game="runner">달리기</button>
+                </div>
+                <div id="userGameRecordsArea"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html> 
