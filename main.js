@@ -1095,74 +1095,83 @@ function dragGameOver() {
 setInterval(updateFallingTrash, 50);
 
 // 모바일 터치 이벤트 지원
+let touchDraggedElement = null;
+let touchProcessed = false;
+
 function addTouchSupport() {
-  let draggedElement = null;
-  let touchProcessed = false; // 터치 중복 처리 방지
+  // 기존 이벤트 리스너 제거 (중복 방지)
+  document.removeEventListener('touchstart', handleTouchStart);
+  document.removeEventListener('touchend', handleTouchEnd);
   
-  document.addEventListener('touchstart', function(e) {
-    if (e.target.classList.contains('falling-trash-item') && dragGameActive) {
-      draggedElement = e.target;
-      e.target.style.opacity = '0.5';
-      currentDraggedElement = e.target; // 드래그 요소 추적
-      touchProcessed = false; // 터치 처리 플래그 초기화
-    }
-  });
-  
-  document.addEventListener('touchend', function(e) {
-    if (draggedElement && e.target.closest('.drag-bin') && !touchProcessed && dragGameActive) {
-      touchProcessed = true; // 중복 처리 방지
-      
-      const bin = e.target.closest('.drag-bin');
-      const draggedType = draggedElement.dataset.type;
-      const binType = bin.dataset.type;
-      
-      console.log('Touch drop:', draggedType, 'to', binType);
-      
-      // 정답 판정 (dragDrop과 동일한 로직)
-      if (draggedType === binType) {
-        dragGameScore++;
-        document.getElementById('dragGameResult').innerHTML = `<span class='text-emerald-700 font-bold'>정답! +1점</span>`;
-        
-        // 정답인 쓰레기를 하늘에서 제거
-        const index = parseInt(draggedElement.dataset.index);
-        if (index >= 0 && index < fallingTrashItems.length) {
-          fallingTrashItems.splice(index, 1);
-          renderFallingTrash();
-        }
-        
-        // 점수에 따라 게임 속도 증가
-        if (dragGameScore % 5 === 0) {
-          gameSpeed += 0.2;
-          console.log('Speed increased to:', gameSpeed);
-        }
-      } else {
-        dragGameLives--;
-        document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>틀렸어요! -1하트</span>`;
-      }
-      
-      updateDragGameUI();
-      
-      if (dragGameLives <= 0) {
-        dragGameOver();
-      }
-      
-      // 드래그 요소 정리
-      draggedElement.style.opacity = '1';
-      draggedElement = null;
-      currentDraggedElement = null;
-      
-      // 잠시 후 터치 처리 플래그 초기화 (중복 방지)
-      setTimeout(() => {
-        touchProcessed = false;
-      }, 100);
-    }
-  });
+  // 새로운 이벤트 리스너 등록
+  document.addEventListener('touchstart', handleTouchStart, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: false });
 }
 
-// 페이지 로드 시 터치 이벤트 추가
-window.addEventListener('DOMContentLoaded', () => {
-  addTouchSupport();
-});
+function handleTouchStart(e) {
+  if (!dragGameActive) return;
+  
+  if (e.target.classList.contains('falling-trash-item')) {
+    e.preventDefault();
+    touchDraggedElement = e.target;
+    e.target.style.opacity = '0.5';
+    currentDraggedElement = e.target;
+    touchProcessed = false;
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!dragGameActive || !touchDraggedElement || touchProcessed) return;
+  
+  const bin = e.target.closest('.drag-bin');
+  if (bin) {
+    e.preventDefault();
+    touchProcessed = true;
+    
+    const draggedType = touchDraggedElement.dataset.type;
+    const binType = bin.dataset.type;
+    
+    console.log('Touch drop:', draggedType, 'to', binType);
+    
+    // 정답 판정
+    if (draggedType === binType) {
+      dragGameScore++;
+      document.getElementById('dragGameResult').innerHTML = `<span class='text-emerald-700 font-bold'>정답! +1점</span>`;
+      
+      // 정답인 쓰레기를 하늘에서 제거
+      const index = parseInt(touchDraggedElement.dataset.index);
+      if (index >= 0 && index < fallingTrashItems.length) {
+        fallingTrashItems.splice(index, 1);
+        renderFallingTrash();
+      }
+      
+      // 점수에 따라 게임 속도 증가
+      if (dragGameScore % 5 === 0) {
+        gameSpeed += 0.2;
+        console.log('Speed increased to:', gameSpeed);
+      }
+    } else {
+      dragGameLives--;
+      document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>틀렸어요! -1하트</span>`;
+    }
+    
+    updateDragGameUI();
+    
+    if (dragGameLives <= 0) {
+      dragGameOver();
+    }
+    
+    // 드래그 요소 정리
+    touchDraggedElement.style.opacity = '1';
+    touchDraggedElement = null;
+    currentDraggedElement = null;
+    
+    // 터치 처리 플래그 초기화
+    setTimeout(() => {
+      touchProcessed = false;
+    }, 200);
+  }
+}
 // ... 
 
 // 로그인 시스템 및 게임 결과 관리
@@ -1186,40 +1195,23 @@ async function handleSignup(event) {
     return;
   }
   
-  if (serverAvailable) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ nickname, phone })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('회원가입이 완료되었습니다! 이제 로그인 해주세요.');
-        showLoginTab();
-      } else {
-        alert(data.error || '회원가입에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Signup error:', error);
-      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
-    }
-  } else {
-    // localStorage fallback
-    let users = getUsers();
-    if (users.find(u => u.nickname === nickname)) {
-      alert('이미 사용 중인 닉네임입니다.');
-      return;
-    }
-    users.push({ nickname, phone });
-    saveUsers(users);
-    alert('회원가입이 완료되었습니다! 이제 로그인 해주세요.');
-    showLoginTab();
+  // localStorage 사용 (서버 없이도 작동)
+  let users = getUsers();
+  if (users.find(u => u.nickname === nickname)) {
+    alert('이미 사용 중인 닉네임입니다.');
+    return;
   }
+  
+  // 새 사용자 추가
+  users.push({ 
+    nickname, 
+    phone,
+    createdAt: new Date().toISOString()
+  });
+  saveUsers(users);
+  
+  alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
+  showLoginTab();
 }
 
 // 로그인 처리
@@ -1232,47 +1224,23 @@ async function handleLogin(event) {
     return;
   }
   
-  if (serverAvailable) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ nickname, phone })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        currentUser = data.user;
-        closeLoginModal();
-        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-        document.getElementById('userInfoBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        showSection('home');
-      } else {
-        alert(data.error || '로그인에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
-    }
-  } else {
-    // localStorage fallback
-    let users = getUsers();
-    const user = users.find(u => u.nickname === nickname && u.phone === phone);
-    if (!user) {
-      alert('닉네임 또는 전화번호가 올바르지 않습니다.');
-      return;
-    }
-    currentUser = { nickname, phone };
-    closeLoginModal();
-    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-    document.getElementById('userInfoBtn').classList.remove('hidden');
-    document.getElementById('loginBtn').classList.add('hidden');
-    showSection('home');
+  // localStorage 사용 (서버 없이도 작동)
+  let users = getUsers();
+  const user = users.find(u => u.nickname === nickname && u.phone === phone);
+  if (!user) {
+    alert('닉네임 또는 전화번호가 올바르지 않습니다.');
+    return;
   }
+  
+  currentUser = { nickname, phone };
+  closeLoginModal();
+  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+  document.getElementById('userInfoBtn').classList.remove('hidden');
+  document.getElementById('loginBtn').classList.add('hidden');
+  showSection('home');
+  
+  // 모바일 버튼도 동기화
+  syncMobileLoginButtons();
 }
 
 // 로그인/회원가입 탭 전환
@@ -1300,6 +1268,9 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
     document.getElementById('signupForm').addEventListener('submit', handleSignup);
     addTouchSupport();
+    
+    // 모바일 로그인 버튼 동기화
+    syncMobileLoginButtons();
 });
 
 // currentUser에서 name 관련 코드 모두 제거, 회원정보 모달 등도 nickname/phone만 사용
@@ -1391,7 +1362,7 @@ async function saveGameRecord(gameType, score) {
     timestamp: Date.now()
   };
   
-  // 로컬 저장 (항상 실행)
+  // localStorage 저장 (서버 없이도 작동)
   if (!gameRecords[gameType]) {
     gameRecords[gameType] = [];
   }
@@ -1404,31 +1375,6 @@ async function saveGameRecord(gameType, score) {
   }
   
   localStorage.setItem('gameRecords', JSON.stringify(gameRecords));
-  
-  // 서버 저장 (서버가 있을 때만)
-  if (serverAvailable) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/scores`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nickname: currentUser.nickname, 
-          gameType, 
-          score 
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        console.error('Failed to save score to server:', data.error);
-      }
-    } catch (error) {
-      console.error('Save score to server error:', error);
-    }
-  }
 }
 
 // 사용자별 게임 기록 가져오기
