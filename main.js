@@ -4,13 +4,22 @@ let firebaseAvailable = false;
 // Firebase 연결 확인
 async function testFirebaseConnection() {
   try {
-    if (window.firebaseDb) {
-      firebaseAvailable = true;
-      console.log('Firebase 연결 성공');
-    } else {
-      firebaseAvailable = false;
-      console.log('Firebase 연결 실패 - localStorage 사용');
+    // Firebase가 로드될 때까지 대기
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      if (window.firebaseDb) {
+        firebaseAvailable = true;
+        console.log('Firebase 연결 성공');
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      attempts++;
     }
+    
+    firebaseAvailable = false;
+    console.log('Firebase 연결 실패 - localStorage 사용');
   } catch (error) {
     firebaseAvailable = false;
     console.log('Firebase 연결 오류:', error);
@@ -18,7 +27,7 @@ async function testFirebaseConnection() {
 }
 
 // 페이지 로드 시 Firebase 연결 테스트
-setTimeout(testFirebaseConnection, 1000); // Firebase 초기화 대기
+testFirebaseConnection();
 
 // ... greeeen/fb의 <script> 태그 안에 있는 모든 JS 코드 복사 ...
 // (환경게임, 모달, 섹션 전환, 뉴스 데이터 등 전체) 
@@ -44,6 +53,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // 로그인 폼 이벤트 리스너 추가
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    
+    // 회원가입 폼 이벤트 리스너 추가
+    document.getElementById('signupForm').addEventListener('submit', handleSignup);
     
     // 터치 이벤트 추가
     addTouchSupport();
@@ -1185,14 +1197,20 @@ function saveUsers(users) {
 // 회원가입 처리
 async function handleSignup(event) {
   event.preventDefault();
+  console.log('회원가입 함수 호출됨');
+  
   const nickname = document.getElementById('signupNickname').value.trim();
   const phone = document.getElementById('signupPhone').value.trim();
+  
+  console.log('입력된 데이터:', { nickname, phone });
+  
   if (!nickname || !phone) {
     alert('닉네임과 전화번호를 모두 입력하세요.');
     return;
   }
   
-  if (firebaseAvailable && window.firebaseDb) {
+  // Firebase 사용 가능 여부 재확인
+  if (window.firebaseDb) {
     try {
       console.log('Firebase 회원가입 시도:', { nickname, phone });
       
@@ -1228,35 +1246,42 @@ async function handleSignup(event) {
       showLoginTab();
     } catch (error) {
       console.error('Firebase signup error:', error);
-      alert('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.log('Firebase 실패, localStorage로 fallback');
+      // Firebase 실패 시 localStorage로 fallback
+      handleSignupLocalStorage(nickname, phone);
     }
   } else {
     // localStorage fallback
-    let users = getUsers();
-    
-    // 닉네임 중복 체크
-    if (users.find(u => u.nickname === nickname)) {
-      alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
-      return;
-    }
-    
-    // 전화번호 중복 체크
-    if (users.find(u => u.phone === phone)) {
-      alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
-      return;
-    }
-    
-    // 새 사용자 추가
-    users.push({ 
-      nickname, 
-      phone,
-      createdAt: new Date().toISOString()
-    });
-    saveUsers(users);
-    
-    alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
-    showLoginTab();
+    handleSignupLocalStorage(nickname, phone);
   }
+}
+
+// localStorage를 사용한 회원가입 처리
+function handleSignupLocalStorage(nickname, phone) {
+  let users = getUsers();
+  
+  // 닉네임 중복 체크
+  if (users.find(u => u.nickname === nickname)) {
+    alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
+    return;
+  }
+  
+  // 전화번호 중복 체크
+  if (users.find(u => u.phone === phone)) {
+    alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
+    return;
+  }
+  
+  // 새 사용자 추가
+  users.push({ 
+    nickname, 
+    phone,
+    createdAt: new Date().toISOString()
+  });
+  saveUsers(users);
+  
+  alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
+  showLoginTab();
 }
 
 // 로그인 처리
@@ -1269,7 +1294,8 @@ async function handleLogin(event) {
     return;
   }
   
-  if (firebaseAvailable && window.firebaseDb) {
+  // Firebase 사용 가능 여부 재확인
+  if (window.firebaseDb) {
     try {
       console.log('Firebase 로그인 시도:', { nickname, phone });
       
@@ -1301,44 +1327,51 @@ async function handleLogin(event) {
       syncMobileLoginButtons();
     } catch (error) {
       console.error('Firebase login error:', error);
-      alert('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.log('Firebase 실패, localStorage로 fallback');
+      // Firebase 실패 시 localStorage로 fallback
+      handleLoginLocalStorage(nickname, phone);
     }
   } else {
     // localStorage fallback
-    let users = getUsers();
-    const user = users.find(u => u.nickname === nickname && u.phone === phone);
-    if (!user) {
-      // 더 자세한 오류 메시지 제공
-      const nicknameExists = users.find(u => u.nickname === nickname);
-      const phoneExists = users.find(u => u.phone === phone);
-      
-      if (!nicknameExists && !phoneExists) {
-        alert('등록되지 않은 계정입니다.\n회원가입을 먼저 해주세요.');
-        showSignupTab();
-      } else if (nicknameExists && !phoneExists) {
-        alert('전화번호가 일치하지 않습니다.\n정확한 전화번호를 입력해주세요.');
-      } else if (!nicknameExists && phoneExists) {
-        alert('닉네임이 일치하지 않습니다.\n정확한 닉네임을 입력해주세요.');
-      } else {
-        alert('닉네임과 전화번호가 일치하지 않습니다.\n정확한 정보를 입력해주세요.');
-      }
-      return;
-    }
-    
-    currentUser = { nickname, phone };
-    
-    // 로그인 상태 저장
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    
-    closeLoginModal();
-    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-    document.getElementById('userInfoBtn').classList.remove('hidden');
-    document.getElementById('loginBtn').classList.add('hidden');
-    showSection('home');
-    
-    // 모바일 버튼도 동기화
-    syncMobileLoginButtons();
+    handleLoginLocalStorage(nickname, phone);
   }
+}
+
+// localStorage를 사용한 로그인 처리
+function handleLoginLocalStorage(nickname, phone) {
+  let users = getUsers();
+  const user = users.find(u => u.nickname === nickname && u.phone === phone);
+  if (!user) {
+    // 더 자세한 오류 메시지 제공
+    const nicknameExists = users.find(u => u.nickname === nickname);
+    const phoneExists = users.find(u => u.phone === phone);
+    
+    if (!nicknameExists && !phoneExists) {
+      alert('등록되지 않은 계정입니다.\n회원가입을 먼저 해주세요.');
+      showSignupTab();
+    } else if (nicknameExists && !phoneExists) {
+      alert('전화번호가 일치하지 않습니다.\n정확한 전화번호를 입력해주세요.');
+    } else if (!nicknameExists && phoneExists) {
+      alert('닉네임이 일치하지 않습니다.\n정확한 닉네임을 입력해주세요.');
+    } else {
+      alert('닉네임과 전화번호가 일치하지 않습니다.\n정확한 정보를 입력해주세요.');
+    }
+    return;
+  }
+  
+  currentUser = { nickname, phone };
+  
+  // 로그인 상태 저장
+  localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  
+  closeLoginModal();
+  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+  document.getElementById('userInfoBtn').classList.remove('hidden');
+  document.getElementById('loginBtn').classList.add('hidden');
+  showSection('home');
+  
+  // 모바일 버튼도 동기화
+  syncMobileLoginButtons();
 }
 
 // 로그인/회원가입 탭 전환
