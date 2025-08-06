@@ -38,7 +38,7 @@ async function testFirebaseConnection() {
     }
     
     firebaseAvailable = false;
-    console.log('Firebase 연결 실패 - localStorage 사용');
+    console.log('Firebase 연결 실패 - Firebase만 사용');
   } catch (error) {
     firebaseAvailable = false;
     console.log('Firebase 연결 오류:', error);
@@ -1236,107 +1236,87 @@ async function handleSignup(event) {
   // Firebase 사용 가능 여부 재확인
   console.log('Firebase 상태 확인:', { firebaseAvailable, firebaseAuth: !!window.firebaseAuth });
   
-  if (window.firebaseAuth && firebaseAvailable) {
-    try {
-      console.log('Firebase Auth 회원가입 시도:', { email, nickname });
-      
-      // Firebase Auth로 계정 생성
-      const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
-      const user = userCredential.user;
-      
-      console.log('Firebase Auth 계정 생성 성공:', user.uid);
-      
-      // 닉네임은 이메일에서 추출
-      const nickname = email.split('@')[0] || '사용자';
-      
-      // Firestore에 사용자 정보 저장
-      const usersRef = window.firebaseDb.collection('users');
-      const docRef = await usersRef.add({
-        uid: user.uid,
-        email: email,
-        nickname: nickname,
-        createdAt: new Date().toISOString()
-      });
-      
-      console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
-      
-      // 회원가입 후 바로 로그인 상태로 설정
-      currentUser = { 
-        uid: user.uid,
-        email: email,
-        nickname: nickname
-      };
-      
-      // 로그인 상태 저장
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      
-      closeLoginModal();
-      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-      document.getElementById('userInfoBtn').classList.remove('hidden');
-      document.getElementById('loginBtn').classList.add('hidden');
-      showSection('home');
-      
-      // 모바일 버튼도 동기화
-      syncMobileLoginButtons();
-      
-      alert('회원가입이 완료되었습니다!');
-      console.log('회원가입 후 자동 로그인 완료:', currentUser);
-    } catch (error) {
-      console.error('Firebase Auth signup error:', error);
-      
-      let errorMessage = '회원가입에 실패했습니다.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = '이미 사용 중인 이메일입니다.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = '비밀번호가 너무 약합니다.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = '올바르지 않은 이메일 형식입니다.';
-      }
-      
-      alert(errorMessage);
-    }
-  } else {
-    // localStorage fallback
-    console.log('Firebase 사용 불가, localStorage 사용');
-    handleSignupLocalStorage(email, password);
-  }
-}
-
-// localStorage를 사용한 회원가입 처리
-function handleSignupLocalStorage(email, password) {
-  console.log('localStorage 회원가입 시작:', { email });
-  
-  let users = getUsers();
-  console.log('기존 사용자 수:', users.length);
-  
-  // 이메일 중복 체크
-  if (users.find(u => u.email === email)) {
-    console.log('이메일 중복 발견');
-    alert('이미 사용 중인 이메일입니다.\n다른 이메일을 사용해주세요.');
+  // Firebase만 사용 (localStorage fallback 제거)
+  if (!firebase.auth()) {
+    alert('Firebase 연결에 실패했습니다. 페이지를 새로고침해주세요.');
     return;
   }
   
-  // 닉네임은 이메일에서 추출
-  const nickname = email.split('@')[0] || '사용자';
-  
-  // 새 사용자 추가
-  const newUser = { 
-    email,
-    password, // 실제로는 해시화해야 하지만 간단히 저장
-    nickname,
-    createdAt: new Date().toISOString()
-  };
-  
-  users.push(newUser);
-  console.log('새 사용자 추가됨:', newUser);
-  console.log('총 사용자 수:', users.length);
-  
-  saveUsers(users);
-  console.log('localStorage에 저장 완료');
-  
-  alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
-  showLoginTab();
+  try {
+    console.log('Firebase Auth 회원가입 시도:', { email });
+    
+    // Firebase Auth로 계정 생성
+    const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    console.log('Firebase Auth 계정 생성 성공:', {
+      uid: user.uid,
+      email: user.email,
+      emailVerified: user.emailVerified
+    });
+    
+    // 닉네임은 이메일에서 추출
+    const nickname = email.split('@')[0] || '사용자';
+    
+    // Firestore에 사용자 정보 저장
+    console.log('Firestore 사용자 정보 저장 시도...');
+    const usersRef = firebase.firestore().collection('users');
+    const docRef = await usersRef.add({
+      uid: user.uid,
+      email: email,
+      nickname: nickname,
+      createdAt: new Date().toISOString()
+    });
+    
+    console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
+    
+    // 회원가입 후 바로 로그인 상태로 설정
+    currentUser = { 
+      uid: user.uid,
+      email: email,
+      nickname: nickname
+    };
+    
+    // 로그인 상태 저장
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
+    closeLoginModal();
+    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+    document.getElementById('userInfoBtn').classList.remove('hidden');
+    document.getElementById('loginBtn').classList.add('hidden');
+    showSection('home');
+    
+    // 모바일 버튼도 동기화
+    syncMobileLoginButtons();
+    
+    alert('회원가입이 완료되었습니다! 🎉');
+    console.log('회원가입 후 자동 로그인 완료:', currentUser);
+  } catch (error) {
+    console.error('Firebase Auth signup error:', error);
+    console.error('오류 상세 정보:', {
+      code: error.code,
+      message: error.message,
+      fullError: error
+    });
+    
+    let errorMessage = '회원가입에 실패했습니다.';
+    if (error.code === 'auth/email-already-in-use') {
+      errorMessage = '이미 사용 중인 이메일입니다.';
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = '비밀번호가 너무 약합니다. (6자 이상)';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = '올바르지 않은 이메일 형식입니다.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      errorMessage = '이 회원가입 방법이 허용되지 않습니다.\nFirebase 콘솔에서 Email/Password를 활성화해주세요.';
+    } else if (error.code === 'auth/network-request-failed') {
+      errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+    }
+    
+    alert(errorMessage);
+  }
 }
+
+
 
 // 로그인 처리
 async function handleLogin(event) {
@@ -1366,125 +1346,84 @@ async function handleLogin(event) {
     firebaseDb: !!window.firebaseDb
   });
   
-  if (window.firebaseAuth && firebaseAvailable) {
-    try {
-      console.log('Firebase Auth 로그인 시도:', { email });
-      
-      // Firebase Auth로 로그인
-      console.log('Firebase Auth 메서드 호출 시도...');
-      const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
-      const user = userCredential.user;
-      console.log('Firebase Auth 로그인 성공, 사용자:', user.uid);
-      
-      console.log('Firebase Auth 로그인 성공:', user.uid);
-      
-      // Firebase Auth만으로 로그인 처리 (Firestore는 게임 기록용)
-      console.log('Firebase Auth 로그인 성공, 사용자 정보:', {
-        uid: user.uid,
-        email: user.email
-      });
-      
-      // 닉네임은 email에서 추출하거나 기본값 사용
-      const nickname = user.email.split('@')[0] || '사용자';
-      
-      currentUser = { 
-        uid: user.uid,
-        email: user.email,
-        nickname: nickname
-      };
-      
-      console.log('현재 사용자 설정:', currentUser);
-      
-      // 로그인 상태 저장
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      
-      // Firebase Auth 상태 확인
-      const currentAuthUser = window.firebaseAuth.currentUser;
-      console.log('Firebase Auth 현재 사용자:', currentAuthUser);
-      
-      closeLoginModal();
-      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-      document.getElementById('userInfoBtn').classList.remove('hidden');
-      document.getElementById('loginBtn').classList.add('hidden');
-      showSection('home');
-      
-      // 모바일 버튼도 동기화
-      syncMobileLoginButtons();
-      
-      console.log('로그인 완료, UI 업데이트됨');
-      
-      // 성공 메시지
-      alert('로그인 성공! 🎉');
-    } catch (error) {
-      console.error('Firebase Auth login error:', error);
-      console.error('오류 코드:', error.code);
-      console.error('오류 메시지:', error.message);
-      
-      let errorMessage = '로그인에 실패했습니다.';
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = '등록되지 않은 이메일입니다.\n회원가입을 먼저 해주세요.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = '비밀번호가 올바르지 않습니다.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = '올바르지 않은 이메일 형식입니다.';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
-      } else if (error.code === 'auth/user-disabled') {
-        errorMessage = '비활성화된 계정입니다.';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = '이 로그인 방법이 허용되지 않습니다.';
-      }
-      
-      console.error('Firebase Auth 로그인 오류 상세:', {
-        code: error.code,
-        message: error.message,
-        fullError: error
-      });
-      
-      alert(errorMessage);
-    }
-  } else {
-    // localStorage fallback
-    handleLoginLocalStorage(email, password);
-  }
-}
-
-// localStorage를 사용한 로그인 처리
-function handleLoginLocalStorage(email, password) {
-  let users = getUsers();
-  const user = users.find(u => u.email === email && u.password === password);
-  if (!user) {
-    // 더 자세한 오류 메시지 제공
-    const emailExists = users.find(u => u.email === email);
-    
-    if (!emailExists) {
-      alert('등록되지 않은 계정입니다.\n회원가입을 먼저 해주세요.');
-      showSignupTab();
-    } else {
-      alert('비밀번호가 올바르지 않습니다.');
-    }
+  // Firebase만 사용 (localStorage fallback 제거)
+  if (!firebase.auth()) {
+    alert('Firebase 연결에 실패했습니다. 페이지를 새로고침해주세요.');
     return;
   }
   
-  currentUser = { 
-    email: user.email,
-    nickname: user.nickname
-  };
-  
-  // 로그인 상태 저장
-  localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  
-  closeLoginModal();
-  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-  document.getElementById('userInfoBtn').classList.remove('hidden');
-  document.getElementById('loginBtn').classList.add('hidden');
-  showSection('home');
-  
-  // 모바일 버튼도 동기화
-  syncMobileLoginButtons();
+  try {
+    console.log('Firebase Auth 로그인 시도:', { email });
+    
+    // Firebase Auth로 로그인
+    const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    console.log('Firebase Auth 로그인 성공:', {
+      uid: user.uid,
+      email: user.email
+    });
+    
+    // 닉네임은 email에서 추출하거나 기본값 사용
+    const nickname = user.email.split('@')[0] || '사용자';
+    
+    currentUser = { 
+      uid: user.uid,
+      email: user.email,
+      nickname: nickname
+    };
+    
+    console.log('현재 사용자 설정:', currentUser);
+    
+    // 로그인 상태 저장
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
+    closeLoginModal();
+    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+    document.getElementById('userInfoBtn').classList.remove('hidden');
+    document.getElementById('loginBtn').classList.add('hidden');
+    showSection('home');
+    
+    // 모바일 버튼도 동기화
+    syncMobileLoginButtons();
+    
+    console.log('로그인 완료, UI 업데이트됨');
+    
+    // 성공 메시지
+    alert('로그인 성공! 🎉');
+  } catch (error) {
+    console.error('Firebase Auth login error:', error);
+    console.error('오류 코드:', error.code);
+    console.error('오류 메시지:', error.message);
+    
+    let errorMessage = '로그인에 실패했습니다.';
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = '등록되지 않은 이메일입니다.\n회원가입을 먼저 해주세요.';
+    } else if (error.code === 'auth/wrong-password') {
+      errorMessage = '비밀번호가 올바르지 않습니다.';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = '올바르지 않은 이메일 형식입니다.';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
+    } else if (error.code === 'auth/network-request-failed') {
+      errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+    } else if (error.code === 'auth/user-disabled') {
+      errorMessage = '비활성화된 계정입니다.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      errorMessage = '이 로그인 방법이 허용되지 않습니다.';
+    }
+    
+    console.error('Firebase Auth 로그인 오류 상세:', {
+      code: error.code,
+      message: error.message,
+      fullError: error
+    });
+    
+    alert(errorMessage);
+  }
 }
+
+
 
 // 로그인/회원가입 탭 전환
 function showLoginTab() {
@@ -1517,8 +1456,13 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Firebase 연결 확인 후 로그인 상태 확인
     setTimeout(() => {
+        console.log('=== Firebase 연결 상태 확인 ===');
         console.log('Firebase 연결 상태:', firebaseAvailable);
         console.log('Firebase Auth 객체:', !!window.firebaseAuth);
+        console.log('Firebase DB 객체:', !!window.firebaseDb);
+        console.log('Firebase Auth 메서드:', window.firebaseAuth ? Object.keys(window.firebaseAuth) : 'N/A');
+        console.log('Firebase DB 메서드:', window.firebaseDb ? Object.keys(window.firebaseDb) : 'N/A');
+        console.log('================================');
         checkLoginStatus();
     }, 2000);
     
@@ -1691,9 +1635,10 @@ async function saveGameRecord(gameType, score) {
     try {
       console.log('Firebase 점수 저장 시도:', { nickname: currentUser.nickname, gameType, score });
       
-      const scoresRef = window.firebaseDb.collection('scores');
+      const scoresRef = firebase.firestore().collection('scores');
       const docRef = await scoresRef.add({
         nickname: currentUser.nickname,
+        email: currentUser.email,
         gameType,
         score,
         timestamp: new Date().toISOString()
@@ -1712,8 +1657,17 @@ async function getUserGameRecords(nickname, gameType) {
   if (firebaseAvailable && window.firebaseDb) {
     try {
       const scoresRef = window.firebaseDb.collection('scores');
-      const userQuery = scoresRef.where('nickname', '==', nickname).where('gameType', '==', gameType);
-      const snapshot = await userQuery.get();
+      
+      // nickname으로 먼저 시도
+      let userQuery = scoresRef.where('nickname', '==', nickname).where('gameType', '==', gameType);
+      let snapshot = await userQuery.get();
+      
+      // nickname으로 찾지 못하면 email로 시도
+      if (snapshot.empty && nickname.includes('@')) {
+        console.log('nickname으로 기록 없음, email로 재시도');
+        userQuery = scoresRef.where('email', '==', nickname).where('gameType', '==', gameType);
+        snapshot = await userQuery.get();
+      }
       
       const records = [];
       snapshot.forEach(doc => {
@@ -1726,6 +1680,8 @@ async function getUserGameRecords(nickname, gameType) {
         });
       });
       
+      console.log(`게임 기록 조회 결과 (${gameType}):`, records.length, '개');
+      
       // 점수 순으로 정렬
       records.sort((a, b) => b.score - a.score);
       return records;
@@ -1734,8 +1690,8 @@ async function getUserGameRecords(nickname, gameType) {
     }
   }
   
-  // localStorage fallback
-  return gameRecords[gameType].filter(record => record.nickname === nickname);
+  // Firebase만 사용
+  return [];
 }
 
 // 전체 게임 기록 가져오기 (상위 10개)
@@ -1766,10 +1722,8 @@ async function getTopGameRecords(gameType, limit = 10) {
     }
   }
   
-  // localStorage fallback
-  if (!gameRecords[gameType]) return [];
-  const allRecords = [...gameRecords[gameType]].sort((a, b) => b.score - a.score);
-  return allRecords.slice(0, limit);
+  // Firebase만 사용
+  return [];
 }
 
 // 사용자의 최고 점수 가져오기
@@ -1984,7 +1938,22 @@ async function dragGameOver() {
 // 회원정보 모달에서 게임 기록 표시 개선
 async function renderUserGameRecords(gameType) {
   const area = document.getElementById('userGameRecordsArea');
-  const records = await getUserGameRecords(currentUser.nickname, gameType);
+  
+  console.log('게임 기록 조회:', {
+    gameType,
+    currentUser: currentUser,
+    nickname: currentUser.nickname,
+    email: currentUser.email
+  });
+  
+  // nickname과 email 모두로 시도
+  let records = await getUserGameRecords(currentUser.nickname, gameType);
+  
+  // nickname으로 찾지 못하면 email로 시도
+  if (records.length === 0 && currentUser.email) {
+    console.log('nickname으로 기록 없음, email로 재시도');
+    records = await getUserGameRecords(currentUser.email, gameType);
+  }
   
   const gameNames = {
     quiz: '에코 퀴즈',
