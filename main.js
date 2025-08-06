@@ -1643,18 +1643,34 @@ window.addEventListener('load', () => {
         console.log('Firebase 회원가입 시도...');
         console.log('Firebase 객체:', firebase);
         console.log('Firebase Auth:', firebase.auth);
+        console.log('window.firebaseLoaded:', window.firebaseLoaded);
         
         try {
-            firebase.auth().createUserWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    console.log('회원가입 성공:', userCredential.user);
-                    alert("회원가입 성공!");
-                    document.getElementById('loginScreen').style.display = 'none';
-                })
-                .catch((error) => {
-                    console.error("회원가입 실패:", error);
-                    alert(error.message);
-                });
+            // window.firebaseAuth 사용
+            if (window.firebaseAuth) {
+                window.firebaseAuth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('회원가입 성공:', userCredential.user);
+                        alert("회원가입 성공!");
+                        document.getElementById('loginScreen').style.display = 'none';
+                    })
+                    .catch((error) => {
+                        console.error("회원가입 실패:", error);
+                        alert(error.message);
+                    });
+            } else {
+                // fallback으로 firebase.auth() 사용
+                firebase.auth().createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('회원가입 성공:', userCredential.user);
+                        alert("회원가입 성공!");
+                        document.getElementById('loginScreen').style.display = 'none';
+                    })
+                    .catch((error) => {
+                        console.error("회원가입 실패:", error);
+                        alert(error.message);
+                    });
+            }
         } catch (error) {
             console.error('Firebase 호출 중 오류:', error);
             alert('Firebase 호출 중 오류가 발생했습니다: ' + error.message);
@@ -1691,18 +1707,34 @@ window.addEventListener('load', () => {
         console.log('Firebase 로그인 시도...');
         console.log('Firebase 객체:', firebase);
         console.log('Firebase Auth:', firebase.auth);
+        console.log('window.firebaseLoaded:', window.firebaseLoaded);
         
         try {
-            firebase.auth().signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    console.log('로그인 성공:', userCredential.user);
-                    alert("로그인 성공!");
-                    document.getElementById('loginScreen').style.display = 'none';
-                })
-                .catch((error) => {
-                    console.error("로그인 실패:", error);
-                    alert(error.message);
-                });
+            // window.firebaseAuth 사용
+            if (window.firebaseAuth) {
+                window.firebaseAuth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('로그인 성공:', userCredential.user);
+                        alert("로그인 성공!");
+                        document.getElementById('loginScreen').style.display = 'none';
+                    })
+                    .catch((error) => {
+                        console.error("로그인 실패:", error);
+                        alert(error.message);
+                    });
+            } else {
+                // fallback으로 firebase.auth() 사용
+                firebase.auth().signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('로그인 성공:', userCredential.user);
+                        alert("로그인 성공!");
+                        document.getElementById('loginScreen').style.display = 'none';
+                    })
+                    .catch((error) => {
+                        console.error("로그인 실패:", error);
+                        alert(error.message);
+                    });
+            }
         } catch (error) {
             console.error('Firebase 호출 중 오류:', error);
             alert('Firebase 호출 중 오류가 발생했습니다: ' + error.message);
