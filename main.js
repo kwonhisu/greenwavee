@@ -1511,7 +1511,7 @@ function openUserInfoModal() {
   document.getElementById('userInfoContent').innerHTML = `
     <div class='mb-4 p-3 bg-emerald-50 rounded-lg'>
       <div class='mb-2'><b>닉네임</b>: ${currentUser.nickname}</div>
-      <div class='mb-2'><b>전화번호</b>: ${currentUser.phone.replace(/(\d{3})-?(\d{3,4})-?(\d{4})/, '$1-****-$3')}</div>
+      <div class='mb-2'><b>이메일</b>: ${currentUser.email}</div>
     </div>
   `;
   
@@ -1520,10 +1520,10 @@ function openUserInfoModal() {
   
   // 탭 이벤트 바인딩
   document.querySelectorAll('.user-record-tab').forEach(btn => {
-    btn.onclick = function() {
+    btn.onclick = async function() {
       document.querySelectorAll('.user-record-tab').forEach(b => b.classList.remove('bg-emerald-900', 'text-white'));
       this.classList.add('bg-emerald-900', 'text-white');
-      renderUserGameRecords(this.dataset.game);
+      await renderUserGameRecords(this.dataset.game);
     };
   });
   
@@ -1631,7 +1631,34 @@ async function saveGameRecord(gameType, score) {
 }
 
 // 사용자별 게임 기록 가져오기
-function getUserGameRecords(nickname, gameType) {
+async function getUserGameRecords(nickname, gameType) {
+  // Firebase에서 게임 기록 가져오기
+  if (firebaseAvailable && window.firebaseDb) {
+    try {
+      const scoresRef = window.firebaseDb.collection('scores');
+      const userQuery = scoresRef.where('nickname', '==', nickname).where('gameType', '==', gameType);
+      const snapshot = await userQuery.get();
+      
+      const records = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        records.push({
+          nickname: data.nickname,
+          score: data.score,
+          date: data.timestamp,
+          timestamp: new Date(data.timestamp).getTime()
+        });
+      });
+      
+      // 점수 순으로 정렬
+      records.sort((a, b) => b.score - a.score);
+      return records;
+    } catch (error) {
+      console.error('Firebase에서 게임 기록 가져오기 실패:', error);
+    }
+  }
+  
+  // localStorage fallback
   return gameRecords[gameType].filter(record => record.nickname === nickname);
 }
 
@@ -1856,9 +1883,9 @@ function dragGameOver() {
 }
 
 // 회원정보 모달에서 게임 기록 표시 개선
-function renderUserGameRecords(gameType) {
+async function renderUserGameRecords(gameType) {
   const area = document.getElementById('userGameRecordsArea');
-  const records = getUserGameRecords(currentUser.nickname, gameType);
+  const records = await getUserGameRecords(currentUser.nickname, gameType);
   
   const gameNames = {
     quiz: '에코 퀴즈',
@@ -2043,37 +2070,3 @@ function syncMobileLoginButtons() {
   }
 }
 
-// 로그인 성공 시 모바일 버튼도 업데이트
-function handleLogin(event) {
-  event.preventDefault();
-  const nickname = document.getElementById('loginNickname').value.trim();
-  const phone = document.getElementById('loginPhone').value.trim();
-  if (!nickname || !phone) {
-    alert('닉네임과 전화번호를 모두 입력하세요.');
-    return;
-  }
-  let users = getUsers();
-  const user = users.find(u => u.nickname === nickname && u.phone === phone);
-  if (!user) {
-    alert('닉네임 또는 전화번호가 올바르지 않습니다.');
-    return;
-  }
-  currentUser = { nickname, phone };
-  closeLoginModal();
-  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-  document.getElementById('userInfoBtn').classList.remove('hidden');
-  document.getElementById('loginBtn').classList.add('hidden');
-  
-  // 모바일 버튼도 업데이트
-  const userInfoBtnMobile = document.getElementById('userInfoBtnMobile');
-  const loginBtnMobile = document.getElementById('loginBtnMobile');
-  if (userInfoBtnMobile) {
-    userInfoBtnMobile.textContent = currentUser.nickname;
-    userInfoBtnMobile.classList.remove('hidden');
-  }
-  if (loginBtnMobile) {
-    loginBtnMobile.classList.add('hidden');
-  }
-  
-  showSection('home');
-}
