@@ -6,16 +6,17 @@ async function testFirebaseConnection() {
   try {
     // Firebase가 로드될 때까지 대기
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 20; // 더 오래 대기
     
     while (attempts < maxAttempts) {
-      if (window.firebaseDb) {
+      if (window.firebaseAuth && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
         firebaseAvailable = true;
         console.log('Firebase 연결 성공');
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       attempts++;
+      console.log(`Firebase 연결 시도 ${attempts}/${maxAttempts}`);
     }
     
     firebaseAvailable = false;
@@ -27,7 +28,7 @@ async function testFirebaseConnection() {
 }
 
 // 페이지 로드 시 Firebase 연결 테스트
-testFirebaseConnection();
+setTimeout(testFirebaseConnection, 1000); // 1초 후 시작
 
 // ... greeeen/fb의 <script> 태그 안에 있는 모든 JS 코드 복사 ...
 // (환경게임, 모달, 섹션 전환, 뉴스 데이터 등 전체) 
@@ -1199,86 +1200,103 @@ async function handleSignup(event) {
   event.preventDefault();
   console.log('회원가입 함수 호출됨');
   
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value.trim();
   const nickname = document.getElementById('signupNickname').value.trim();
-  const phone = document.getElementById('signupPhone').value.trim();
   
-  console.log('입력된 데이터:', { nickname, phone });
+  console.log('입력된 데이터:', { email, nickname });
   
-  if (!nickname || !phone) {
-    alert('닉네임과 전화번호를 모두 입력하세요.');
+  if (!email || !password || !nickname) {
+    alert('이메일, 비밀번호, 닉네임을 모두 입력하세요.');
+    return;
+  }
+  
+  if (password.length < 6) {
+    alert('비밀번호는 6자 이상이어야 합니다.');
     return;
   }
   
   // Firebase 사용 가능 여부 재확인
-  if (window.firebaseDb) {
+  console.log('Firebase 상태 확인:', { firebaseAvailable, firebaseAuth: !!window.firebaseAuth });
+  
+  if (window.firebaseAuth && firebaseAvailable) {
     try {
-      console.log('Firebase 회원가입 시도:', { nickname, phone });
+      console.log('Firebase Auth 회원가입 시도:', { email, nickname });
       
-      // Firebase Firestore에서 사용자 중복 확인
-      const { collection, addDoc, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
+      // Firebase Auth로 계정 생성
+      const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
+      const user = userCredential.user;
       
-      const usersRef = collection(window.firebaseDb, 'users');
-      const q = query(usersRef, where('nickname', '==', nickname));
-      const querySnapshot = await getDocs(q);
+      console.log('Firebase Auth 계정 생성 성공:', user.uid);
       
-      if (!querySnapshot.empty) {
-        alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
-        return;
-      }
-      
-      const phoneQuery = query(usersRef, where('phone', '==', phone));
-      const phoneSnapshot = await getDocs(phoneQuery);
-      
-      if (!phoneSnapshot.empty) {
-        alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
-        return;
-      }
-      
-      // 새 사용자 추가
-      const docRef = await addDoc(collection(window.firebaseDb, 'users'), {
-        nickname,
-        phone,
+      // Firestore에 사용자 정보 저장
+      const usersRef = window.firebaseDb.collection('users');
+      const docRef = await usersRef.add({
+        uid: user.uid,
+        email: email,
+        nickname: nickname,
         createdAt: new Date().toISOString()
       });
       
-      console.log('Firebase 회원가입 성공:', docRef.id);
+      console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
       alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
       showLoginTab();
     } catch (error) {
-      console.error('Firebase signup error:', error);
-      console.log('Firebase 실패, localStorage로 fallback');
-      // Firebase 실패 시 localStorage로 fallback
-      handleSignupLocalStorage(nickname, phone);
+      console.error('Firebase Auth signup error:', error);
+      
+      let errorMessage = '회원가입에 실패했습니다.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = '이미 사용 중인 이메일입니다.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = '비밀번호가 너무 약합니다.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = '올바르지 않은 이메일 형식입니다.';
+      }
+      
+      alert(errorMessage);
     }
   } else {
     // localStorage fallback
-    handleSignupLocalStorage(nickname, phone);
+    console.log('Firebase 사용 불가, localStorage 사용');
+    handleSignupLocalStorage(email, password, nickname);
   }
 }
 
 // localStorage를 사용한 회원가입 처리
-function handleSignupLocalStorage(nickname, phone) {
+function handleSignupLocalStorage(email, password, nickname) {
+  console.log('localStorage 회원가입 시작:', { email, nickname });
+  
   let users = getUsers();
+  console.log('기존 사용자 수:', users.length);
+  
+  // 이메일 중복 체크
+  if (users.find(u => u.email === email)) {
+    console.log('이메일 중복 발견');
+    alert('이미 사용 중인 이메일입니다.\n다른 이메일을 사용해주세요.');
+    return;
+  }
   
   // 닉네임 중복 체크
   if (users.find(u => u.nickname === nickname)) {
+    console.log('닉네임 중복 발견');
     alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
     return;
   }
   
-  // 전화번호 중복 체크
-  if (users.find(u => u.phone === phone)) {
-    alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
-    return;
-  }
-  
   // 새 사용자 추가
-  users.push({ 
-    nickname, 
-    phone,
+  const newUser = { 
+    email,
+    password, // 실제로는 해시화해야 하지만 간단히 저장
+    nickname,
     createdAt: new Date().toISOString()
-  });
+  };
+  
+  users.push(newUser);
+  console.log('새 사용자 추가됨:', newUser);
+  console.log('총 사용자 수:', users.length);
+  
   saveUsers(users);
+  console.log('localStorage에 저장 완료');
   
   alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
   showLoginTab();
@@ -1287,79 +1305,95 @@ function handleSignupLocalStorage(nickname, phone) {
 // 로그인 처리
 async function handleLogin(event) {
   event.preventDefault();
-  const nickname = document.getElementById('loginNickname').value.trim();
-  const phone = document.getElementById('loginPhone').value.trim();
-  if (!nickname || !phone) {
-    alert('닉네임과 전화번호를 모두 입력하세요.');
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  
+  if (!email || !password) {
+    alert('이메일과 비밀번호를 모두 입력하세요.');
     return;
   }
   
   // Firebase 사용 가능 여부 재확인
-  if (window.firebaseDb) {
+  if (window.firebaseAuth && firebaseAvailable) {
     try {
-      console.log('Firebase 로그인 시도:', { nickname, phone });
+      console.log('Firebase Auth 로그인 시도:', { email });
       
-      // Firebase Firestore에서 사용자 확인
-      const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
+      // Firebase Auth로 로그인
+      const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
+      const user = userCredential.user;
       
-      const usersRef = collection(window.firebaseDb, 'users');
-      const q = query(usersRef, where('nickname', '==', nickname), where('phone', '==', phone));
-      const querySnapshot = await getDocs(q);
+      console.log('Firebase Auth 로그인 성공:', user.uid);
       
-      if (querySnapshot.empty) {
-        alert('닉네임 또는 전화번호가 올바르지 않습니다.');
-        return;
+      // Firestore에서 사용자 정보 가져오기
+      const usersRef = window.firebaseDb.collection('users');
+      const userQuery = usersRef.where('uid', '==', user.uid);
+      const userSnapshot = await userQuery.get();
+      
+      if (!userSnapshot.empty) {
+        const userDoc = userSnapshot.docs[0];
+        const userData = userDoc.data();
+        
+        currentUser = { 
+          uid: user.uid,
+          email: user.email,
+          nickname: userData.nickname
+        };
+        
+        // 로그인 상태 저장
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        
+        closeLoginModal();
+        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+        document.getElementById('userInfoBtn').classList.remove('hidden');
+        document.getElementById('loginBtn').classList.add('hidden');
+        showSection('home');
+        
+        // 모바일 버튼도 동기화
+        syncMobileLoginButtons();
+      } else {
+        alert('사용자 정보를 찾을 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('Firebase Auth login error:', error);
+      
+      let errorMessage = '로그인에 실패했습니다.';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = '등록되지 않은 이메일입니다.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = '비밀번호가 올바르지 않습니다.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = '올바르지 않은 이메일 형식입니다.';
       }
       
-      const userDoc = querySnapshot.docs[0];
-      currentUser = { nickname, phone };
-      
-      // 로그인 상태 저장
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      
-      closeLoginModal();
-      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-      document.getElementById('userInfoBtn').classList.remove('hidden');
-      document.getElementById('loginBtn').classList.add('hidden');
-      showSection('home');
-      
-      // 모바일 버튼도 동기화
-      syncMobileLoginButtons();
-    } catch (error) {
-      console.error('Firebase login error:', error);
-      console.log('Firebase 실패, localStorage로 fallback');
-      // Firebase 실패 시 localStorage로 fallback
-      handleLoginLocalStorage(nickname, phone);
+      alert(errorMessage);
     }
   } else {
     // localStorage fallback
-    handleLoginLocalStorage(nickname, phone);
+    handleLoginLocalStorage(email, password);
   }
 }
 
 // localStorage를 사용한 로그인 처리
-function handleLoginLocalStorage(nickname, phone) {
+function handleLoginLocalStorage(email, password) {
   let users = getUsers();
-  const user = users.find(u => u.nickname === nickname && u.phone === phone);
+  const user = users.find(u => u.email === email && u.password === password);
   if (!user) {
     // 더 자세한 오류 메시지 제공
-    const nicknameExists = users.find(u => u.nickname === nickname);
-    const phoneExists = users.find(u => u.phone === phone);
+    const emailExists = users.find(u => u.email === email);
     
-    if (!nicknameExists && !phoneExists) {
+    if (!emailExists) {
       alert('등록되지 않은 계정입니다.\n회원가입을 먼저 해주세요.');
       showSignupTab();
-    } else if (nicknameExists && !phoneExists) {
-      alert('전화번호가 일치하지 않습니다.\n정확한 전화번호를 입력해주세요.');
-    } else if (!nicknameExists && phoneExists) {
-      alert('닉네임이 일치하지 않습니다.\n정확한 닉네임을 입력해주세요.');
     } else {
-      alert('닉네임과 전화번호가 일치하지 않습니다.\n정확한 정보를 입력해주세요.');
+      alert('비밀번호가 올바르지 않습니다.');
     }
     return;
   }
   
-  currentUser = { nickname, phone };
+  currentUser = { 
+    email: user.email,
+    nickname: user.nickname
+  };
   
   // 로그인 상태 저장
   localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -1558,10 +1592,8 @@ async function saveGameRecord(gameType, score) {
     try {
       console.log('Firebase 점수 저장 시도:', { nickname: currentUser.nickname, gameType, score });
       
-      const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
-      
-      const scoresRef = collection(window.firebaseDb, 'scores');
-      const docRef = await addDoc(scoresRef, {
+      const scoresRef = window.firebaseDb.collection('scores');
+      const docRef = await scoresRef.add({
         nickname: currentUser.nickname,
         gameType,
         score,
