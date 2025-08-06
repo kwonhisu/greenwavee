@@ -13,6 +13,19 @@ async function testFirebaseConnection() {
         firebaseAvailable = true;
         console.log('Firebase 연결 성공');
         console.log('Firebase Auth 메서드:', Object.keys(window.firebaseAuth));
+        
+        // Firebase Auth 상태 변경 감지 설정
+        window.firebaseAuth.onAuthStateChanged((user) => {
+          console.log('Firebase Auth 상태 변경:', user ? user.email : '로그아웃');
+          if (user) {
+            console.log('Firebase Auth 사용자 정보:', {
+              uid: user.uid,
+              email: user.email,
+              emailVerified: user.emailVerified
+            });
+          }
+        });
+        
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -1385,6 +1398,10 @@ async function handleLogin(event) {
       // 로그인 상태 저장
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
       
+      // Firebase Auth 상태 확인
+      const currentAuthUser = window.firebaseAuth.currentUser;
+      console.log('Firebase Auth 현재 사용자:', currentAuthUser);
+      
       closeLoginModal();
       document.getElementById('userInfoBtn').textContent = currentUser.nickname;
       document.getElementById('userInfoBtn').classList.remove('hidden');
@@ -1395,6 +1412,9 @@ async function handleLogin(event) {
       syncMobileLoginButtons();
       
       console.log('로그인 완료, UI 업데이트됨');
+      
+      // 성공 메시지
+      alert('로그인 성공! 🎉');
     } catch (error) {
       console.error('Firebase Auth login error:', error);
       console.error('오류 코드:', error.code);
@@ -1402,7 +1422,7 @@ async function handleLogin(event) {
       
       let errorMessage = '로그인에 실패했습니다.';
       if (error.code === 'auth/user-not-found') {
-        errorMessage = '등록되지 않은 이메일입니다.';
+        errorMessage = '등록되지 않은 이메일입니다.\n회원가입을 먼저 해주세요.';
       } else if (error.code === 'auth/wrong-password') {
         errorMessage = '비밀번호가 올바르지 않습니다.';
       } else if (error.code === 'auth/invalid-email') {
@@ -1411,7 +1431,17 @@ async function handleLogin(event) {
         errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
       } else if (error.code === 'auth/network-request-failed') {
         errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = '비활성화된 계정입니다.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = '이 로그인 방법이 허용되지 않습니다.';
       }
+      
+      console.error('Firebase Auth 로그인 오류 상세:', {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
       
       alert(errorMessage);
     }
