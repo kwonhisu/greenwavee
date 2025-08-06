@@ -1347,6 +1347,12 @@ async function handleLogin(event) {
     authMethods: window.firebaseAuth ? Object.keys(window.firebaseAuth) : 'N/A'
   });
   
+  console.log('현재 Firebase 연결 상태:', {
+    firebaseAvailable,
+    firebaseAuth: !!window.firebaseAuth,
+    firebaseDb: !!window.firebaseDb
+  });
+  
   if (window.firebaseAuth && firebaseAvailable) {
     try {
       console.log('Firebase Auth 로그인 시도:', { email });
@@ -1479,8 +1485,12 @@ window.addEventListener('DOMContentLoaded', () => {
     // 모바일 로그인 버튼 동기화
     syncMobileLoginButtons();
     
-    // 현재 로그인 상태 확인
-    checkLoginStatus();
+    // Firebase 연결 확인 후 로그인 상태 확인
+    setTimeout(() => {
+        console.log('Firebase 연결 상태:', firebaseAvailable);
+        console.log('Firebase Auth 객체:', !!window.firebaseAuth);
+        checkLoginStatus();
+    }, 2000);
     
     // 테스트용 더미 데이터 추가 (개발 중에만 사용)
     // addDummyData();
@@ -1492,28 +1502,45 @@ function checkLoginStatus() {
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
-      // 사용자가 여전히 존재하는지 확인
-      const users = getUsers();
-      const userExists = users.find(u => 
-        u.nickname === currentUser.nickname && u.phone === currentUser.phone
-      );
+      console.log('저장된 사용자 정보:', currentUser);
       
-      if (userExists) {
-        // 로그인 상태 복원
-        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-        document.getElementById('userInfoBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        syncMobileLoginButtons();
+      // Firebase Auth 상태 확인 (Firebase가 있을 때만)
+      if (firebaseAvailable && window.firebaseAuth) {
+        window.firebaseAuth.onAuthStateChanged((user) => {
+          if (user) {
+            console.log('Firebase Auth 사용자 확인됨:', user.email);
+            // Firebase Auth 사용자와 localStorage 사용자 정보 동기화
+            if (currentUser && user.email === currentUser.email) {
+              currentUser.uid = user.uid;
+              localStorage.setItem('currentUser', JSON.stringify(currentUser));
+              updateLoginUI();
+            }
+          } else {
+            console.log('Firebase Auth 사용자 없음');
+            // localStorage fallback
+            updateLoginUI();
+          }
+        });
       } else {
-        // 사용자가 삭제된 경우 로그아웃
-        localStorage.removeItem('currentUser');
-        currentUser = null;
+        // localStorage fallback
+        updateLoginUI();
       }
     } catch (error) {
       console.error('로그인 상태 복원 실패:', error);
       localStorage.removeItem('currentUser');
       currentUser = null;
     }
+  }
+}
+
+// 로그인 UI 업데이트 함수
+function updateLoginUI() {
+  if (currentUser) {
+    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+    document.getElementById('userInfoBtn').classList.remove('hidden');
+    document.getElementById('loginBtn').classList.add('hidden');
+    syncMobileLoginButtons();
+    console.log('로그인 UI 업데이트 완료:', currentUser.nickname);
   }
 }
 
