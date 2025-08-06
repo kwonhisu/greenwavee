@@ -1,28 +1,24 @@
-// API 서버 URL (Netlify 배포 시 자동으로 현재 도메인 사용)
-const API_BASE_URL = window.location.origin + '/api';
+// Firebase Firestore 사용
+let firebaseAvailable = false;
 
-// 서버 연결 상태 확인
-let serverAvailable = false;
-
-// 서버 연결 테스트
-async function testServerConnection() {
+// Firebase 연결 확인
+async function testFirebaseConnection() {
   try {
-    const response = await fetch(`${API_BASE_URL}/scores`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    serverAvailable = response.ok;
-    console.log('서버 연결 성공:', serverAvailable);
+    if (window.firebaseDb) {
+      firebaseAvailable = true;
+      console.log('Firebase 연결 성공');
+    } else {
+      firebaseAvailable = false;
+      console.log('Firebase 연결 실패 - localStorage 사용');
+    }
   } catch (error) {
-    serverAvailable = false;
-    console.log('서버 연결 불가 - localStorage 사용');
+    firebaseAvailable = false;
+    console.log('Firebase 연결 오류:', error);
   }
 }
 
-// 페이지 로드 시 서버 연결 테스트
-testServerConnection();
+// 페이지 로드 시 Firebase 연결 테스트
+setTimeout(testFirebaseConnection, 1000); // Firebase 초기화 대기
 
 // ... greeeen/fb의 <script> 태그 안에 있는 모든 JS 코드 복사 ...
 // (환경게임, 모달, 섹션 전환, 뉴스 데이터 등 전체) 
@@ -1196,27 +1192,43 @@ async function handleSignup(event) {
     return;
   }
   
-  if (serverAvailable) {
+  if (firebaseAvailable && window.firebaseDb) {
     try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ nickname, phone })
+      console.log('Firebase 회원가입 시도:', { nickname, phone });
+      
+      // Firebase Firestore에서 사용자 중복 확인
+      const { collection, addDoc, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
+      
+      const usersRef = collection(window.firebaseDb, 'users');
+      const q = query(usersRef, where('nickname', '==', nickname));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
+        return;
+      }
+      
+      const phoneQuery = query(usersRef, where('phone', '==', phone));
+      const phoneSnapshot = await getDocs(phoneQuery);
+      
+      if (!phoneSnapshot.empty) {
+        alert('이미 등록된 전화번호입니다.\n다른 전화번호를 사용하거나 로그인해주세요.');
+        return;
+      }
+      
+      // 새 사용자 추가
+      const docRef = await addDoc(collection(window.firebaseDb, 'users'), {
+        nickname,
+        phone,
+        createdAt: new Date().toISOString()
       });
       
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
-        showLoginTab();
-      } else {
-        alert(data.error || '회원가입에 실패했습니다.');
-      }
+      console.log('Firebase 회원가입 성공:', docRef.id);
+      alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
+      showLoginTab();
     } catch (error) {
-      console.error('Signup error:', error);
-      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.error('Firebase signup error:', error);
+      alert('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   } else {
     // localStorage fallback
@@ -1257,38 +1269,39 @@ async function handleLogin(event) {
     return;
   }
   
-  if (serverAvailable) {
+  if (firebaseAvailable && window.firebaseDb) {
     try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ nickname, phone })
-      });
+      console.log('Firebase 로그인 시도:', { nickname, phone });
       
-      const data = await response.json();
+      // Firebase Firestore에서 사용자 확인
+      const { collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
       
-      if (data.success) {
-        currentUser = data.user;
-        
-        // 로그인 상태 저장
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        closeLoginModal();
-        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-        document.getElementById('userInfoBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        showSection('home');
-        
-        // 모바일 버튼도 동기화
-        syncMobileLoginButtons();
-      } else {
-        alert(data.error || '로그인에 실패했습니다.');
+      const usersRef = collection(window.firebaseDb, 'users');
+      const q = query(usersRef, where('nickname', '==', nickname), where('phone', '==', phone));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        alert('닉네임 또는 전화번호가 올바르지 않습니다.');
+        return;
       }
+      
+      const userDoc = querySnapshot.docs[0];
+      currentUser = { nickname, phone };
+      
+      // 로그인 상태 저장
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      
+      closeLoginModal();
+      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+      document.getElementById('userInfoBtn').classList.remove('hidden');
+      document.getElementById('loginBtn').classList.add('hidden');
+      showSection('home');
+      
+      // 모바일 버튼도 동기화
+      syncMobileLoginButtons();
     } catch (error) {
-      console.error('Login error:', error);
-      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      console.error('Firebase login error:', error);
+      alert('로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   } else {
     // localStorage fallback
@@ -1507,28 +1520,24 @@ async function saveGameRecord(gameType, score) {
   
   localStorage.setItem('gameRecords', JSON.stringify(gameRecords));
   
-  // 서버 저장 (서버가 있을 때만)
-  if (serverAvailable) {
+  // Firebase 저장 (Firebase가 있을 때만)
+  if (firebaseAvailable && window.firebaseDb) {
     try {
-      const response = await fetch(`${API_BASE_URL}/scores`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nickname: currentUser.nickname, 
-          gameType, 
-          score 
-        })
+      console.log('Firebase 점수 저장 시도:', { nickname: currentUser.nickname, gameType, score });
+      
+      const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js');
+      
+      const scoresRef = collection(window.firebaseDb, 'scores');
+      const docRef = await addDoc(scoresRef, {
+        nickname: currentUser.nickname,
+        gameType,
+        score,
+        timestamp: new Date().toISOString()
       });
       
-      const data = await response.json();
-      
-      if (!data.success) {
-        console.error('Failed to save score to server:', data.error);
-      }
+      console.log('Firebase 점수 저장 성공:', docRef.id);
     } catch (error) {
-      console.error('Save score to server error:', error);
+      console.error('Firebase save score error:', error);
     }
   }
 }
