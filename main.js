@@ -992,8 +992,8 @@ function dragDrop(event) {
     if (currentDraggedElement) {
       const index = parseInt(currentDraggedElement.dataset.index);
       if (index >= 0 && index < fallingTrashItems.length) {
-        fallingTrashItems.splice(index, 1);
-        renderFallingTrash();
+      fallingTrashItems.splice(index, 1);
+      renderFallingTrash();
       }
       
       // 점수에 따라 게임 속도 증가
@@ -1139,66 +1139,66 @@ function addTouchSupport() {
 function handleTouchStart(e) {
   if (!dragGameActive) return;
   
-  if (e.target.classList.contains('falling-trash-item')) {
+    if (e.target.classList.contains('falling-trash-item')) {
     e.preventDefault();
     touchDraggedElement = e.target;
-    e.target.style.opacity = '0.5';
+      e.target.style.opacity = '0.5';
     currentDraggedElement = e.target;
     touchProcessed = false;
-  }
+    }
 }
-
+  
 function handleTouchEnd(e) {
   if (!dragGameActive || !touchDraggedElement || touchProcessed) return;
   
-  const bin = e.target.closest('.drag-bin');
+      const bin = e.target.closest('.drag-bin');
   if (bin) {
     e.preventDefault();
     touchProcessed = true;
     
     const draggedType = touchDraggedElement.dataset.type;
-    const binType = bin.dataset.type;
-    
-    console.log('Touch drop:', draggedType, 'to', binType);
-    
-    // 정답 판정
-    if (draggedType === binType) {
-      dragGameScore++;
-      document.getElementById('dragGameResult').innerHTML = `<span class='text-emerald-700 font-bold'>정답! +1점</span>`;
+      const binType = bin.dataset.type;
       
-      // 정답인 쓰레기를 하늘에서 제거
+      console.log('Touch drop:', draggedType, 'to', binType);
+      
+    // 정답 판정
+      if (draggedType === binType) {
+        dragGameScore++;
+        document.getElementById('dragGameResult').innerHTML = `<span class='text-emerald-700 font-bold'>정답! +1점</span>`;
+        
+        // 정답인 쓰레기를 하늘에서 제거
       const index = parseInt(touchDraggedElement.dataset.index);
       if (index >= 0 && index < fallingTrashItems.length) {
         fallingTrashItems.splice(index, 1);
         renderFallingTrash();
       }
-      
-      // 점수에 따라 게임 속도 증가
-      if (dragGameScore % 5 === 0) {
-        gameSpeed += 0.2;
-        console.log('Speed increased to:', gameSpeed);
+        
+        // 점수에 따라 게임 속도 증가
+        if (dragGameScore % 5 === 0) {
+          gameSpeed += 0.2;
+          console.log('Speed increased to:', gameSpeed);
+        }
+      } else {
+        dragGameLives--;
+        document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>틀렸어요! -1하트</span>`;
       }
-    } else {
-      dragGameLives--;
-      document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>틀렸어요! -1하트</span>`;
-    }
-    
-    updateDragGameUI();
-    
-    if (dragGameLives <= 0) {
-      dragGameOver();
-    }
-    
+      
+      updateDragGameUI();
+      
+      if (dragGameLives <= 0) {
+        dragGameOver();
+      }
+      
     // 드래그 요소 정리
     touchDraggedElement.style.opacity = '1';
     touchDraggedElement = null;
-    currentDraggedElement = null;
+      currentDraggedElement = null;
     
     // 터치 처리 플래그 초기화
     setTimeout(() => {
       touchProcessed = false;
     }, 200);
-  }
+    }
 }
 // ... 
 
@@ -1213,8 +1213,12 @@ function saveUsers(users) {
   localStorage.setItem('users', JSON.stringify(users));
 }
 
-// 회원가입 처리
+
+
+// 회원가입 처리 (주석 처리됨 - 간단한 버전으로 대체)
+/*
 async function handleSignup(event) {
+  console.log('=== 회원가입 함수 시작 ===');
   event.preventDefault();
   console.log('회원가입 함수 호출됨');
   
@@ -1233,19 +1237,24 @@ async function handleSignup(event) {
     return;
   }
   
-  // Firebase 사용 가능 여부 재확인
+  // Firebase 연결 확인
+  console.log('=== 회원가입 Firebase 연결 확인 ===');
+  console.log('firebase 객체:', !!firebase);
+  console.log('firebase.auth():', !!firebase.auth);
+  console.log('firebase.firestore():', !!firebase.firestore);
   console.log('Firebase 상태 확인:', { firebaseAvailable, firebaseAuth: !!window.firebaseAuth });
   
-  // Firebase만 사용 (localStorage fallback 제거)
-  if (!firebase.auth()) {
+  if (!firebase || !firebase.auth) {
     alert('Firebase 연결에 실패했습니다. 페이지를 새로고침해주세요.');
+    console.error('Firebase 연결 실패');
     return;
   }
   
   try {
     console.log('Firebase Auth 회원가입 시도:', { email });
     
-    // Firebase Auth로 계정 생성
+    // Firebase Auth로 계정 생성 (간단한 테스트)
+    console.log('createUserWithEmailAndPassword 호출...');
     const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
     const user = userCredential.user;
     
@@ -1258,17 +1267,20 @@ async function handleSignup(event) {
     // 닉네임은 이메일에서 추출
     const nickname = email.split('@')[0] || '사용자';
     
-    // Firestore에 사용자 정보 저장
-    console.log('Firestore 사용자 정보 저장 시도...');
-    const usersRef = firebase.firestore().collection('users');
-    const docRef = await usersRef.add({
-      uid: user.uid,
-      email: email,
-      nickname: nickname,
-      createdAt: new Date().toISOString()
-    });
-    
-    console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
+    // Firestore에 사용자 정보 저장 (선택사항)
+    try {
+      console.log('Firestore 사용자 정보 저장 시도...');
+      const usersRef = firebase.firestore().collection('users');
+      const docRef = await usersRef.add({
+        uid: user.uid,
+        email: email,
+        nickname: nickname,
+        createdAt: new Date().toISOString()
+      });
+      console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
+    } catch (firestoreError) {
+      console.log('Firestore 저장 실패 (계속 진행):', firestoreError);
+    }
     
     // 회원가입 후 바로 로그인 상태로 설정
     currentUser = { 
@@ -1315,10 +1327,12 @@ async function handleSignup(event) {
     alert(errorMessage);
   }
 }
+*/
 
 
 
-// 로그인 처리
+// 로그인 처리 (주석 처리됨 - 간단한 버전으로 대체)
+/*
 async function handleLogin(event) {
   event.preventDefault();
   console.log('로그인 함수 호출됨');
@@ -1378,11 +1392,11 @@ async function handleLogin(event) {
     // 로그인 상태 저장
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     
-    closeLoginModal();
-    document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-    document.getElementById('userInfoBtn').classList.remove('hidden');
-    document.getElementById('loginBtn').classList.add('hidden');
-    showSection('home');
+  closeLoginModal();
+  document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+  document.getElementById('userInfoBtn').classList.remove('hidden');
+  document.getElementById('loginBtn').classList.add('hidden');
+  showSection('home');
     
     // 모바일 버튼도 동기화
     syncMobileLoginButtons();
@@ -1422,6 +1436,7 @@ async function handleLogin(event) {
     alert(errorMessage);
   }
 }
+*/
 
 
 
@@ -1445,14 +1460,63 @@ function showSignupTab() {
 
 // 페이지 로드 시 이벤트 연결
 window.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM 로드 완료 - 이벤트 리스너 연결 시작');
+    
     showSection('home');
     renderNewsList();
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
-    document.getElementById('signupForm').addEventListener('submit', handleSignup);
     addTouchSupport();
     
     // 모바일 로그인 버튼 동기화
     syncMobileLoginButtons();
+    
+    // 로그인 버튼 이벤트 리스너 즉시 연결
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBtnMobile = document.getElementById('loginBtnMobile');
+    
+    console.log('로그인 버튼 확인:', {
+        loginBtn: !!loginBtn,
+        loginBtnMobile: !!loginBtnMobile
+    });
+    
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            console.log('DOMContentLoaded - 데스크톱 로그인 버튼 클릭됨!');
+            openLoginModal();
+        });
+        console.log('DOMContentLoaded - 데스크톱 로그인 버튼 이벤트 리스너 연결됨');
+    }
+    
+    if (loginBtnMobile) {
+        loginBtnMobile.addEventListener('click', () => {
+            console.log('DOMContentLoaded - 모바일 로그인 버튼 클릭됨!');
+            openLoginModal();
+        });
+        console.log('DOMContentLoaded - 모바일 로그인 버튼 이벤트 리스너 연결됨');
+    }
+    
+    // 로그인 버튼 이벤트 리스너 추가
+    const loginButton = document.getElementById('loginButton');
+    if (loginButton) {
+        loginButton.addEventListener('click', () => {
+            console.log('DOMContentLoaded - 로그인 버튼 클릭됨!');
+            handleLoginClick();
+        });
+        console.log('DOMContentLoaded - 로그인 버튼 이벤트 리스너 연결됨');
+    } else {
+        console.error('DOMContentLoaded - 로그인 버튼을 찾을 수 없습니다!');
+    }
+    
+    // 회원가입 버튼 이벤트 리스너 추가
+    const signupButton = document.getElementById('signupButton');
+    if (signupButton) {
+        signupButton.addEventListener('click', () => {
+            console.log('DOMContentLoaded - 회원가입 버튼 클릭됨!');
+            handleSignupClick();
+        });
+        console.log('DOMContentLoaded - 회원가입 버튼 이벤트 리스너 연결됨');
+    } else {
+        console.error('DOMContentLoaded - 회원가입 버튼을 찾을 수 없습니다!');
+    }
     
     // Firebase 연결 확인 후 로그인 상태 확인
     setTimeout(() => {
@@ -1462,12 +1526,219 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log('Firebase DB 객체:', !!window.firebaseDb);
         console.log('Firebase Auth 메서드:', window.firebaseAuth ? Object.keys(window.firebaseAuth) : 'N/A');
         console.log('Firebase DB 메서드:', window.firebaseDb ? Object.keys(window.firebaseDb) : 'N/A');
+        console.log('firebase 객체:', !!firebase);
+        console.log('firebase.auth():', !!firebase.auth);
+        console.log('firebase.firestore():', !!firebase.firestore);
+        
+        // Firebase 직접 테스트
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            console.log('Firebase Auth 사용 가능');
+            console.log('Firebase Auth 메서드들:', Object.keys(firebase.auth()));
+        } else {
+            console.error('Firebase Auth 사용 불가');
+        }
         console.log('================================');
         checkLoginStatus();
     }, 2000);
     
     // 테스트용 더미 데이터 추가 (개발 중에만 사용)
     // addDummyData();
+});
+
+// 모든 리소스 로드 후 이벤트 리스너 연결
+window.addEventListener('load', () => {
+    console.log('=== 모든 리소스 로드 완료 - 이벤트 리스너 연결 ===');
+    
+    // 간단한 회원가입 이벤트 리스너
+    const signupForm = document.getElementById('signupForm');
+    if (signupForm) {
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            console.log('회원가입 폼 제출됨!');
+
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    alert("회원가입 성공!");
+                    document.getElementById('loginScreen').style.display = 'none';
+                })
+                .catch((error) => {
+                    console.error("회원가입 실패:", error);
+                    alert(error.message);
+                });
+        });
+        console.log('회원가입 폼 이벤트 리스너 연결됨');
+    } else {
+        console.error('회원가입 폼을 찾을 수 없습니다!');
+    }
+    
+    // 회원가입 버튼 직접 이벤트 리스너 추가
+    const signupButton = signupForm ? signupForm.querySelector('button[type="button"]') : null;
+    if (signupButton) {
+        signupButton.addEventListener('click', (e) => {
+            console.log('회원가입 버튼 클릭 이벤트 발생!');
+            alert('회원가입 버튼 클릭 이벤트 발생!');
+            handleSignupClick();
+        });
+        console.log('회원가입 버튼 클릭 이벤트 리스너 연결됨');
+    } else {
+        console.error('회원가입 버튼을 찾을 수 없습니다!');
+    }
+    
+    // 간단한 로그인 이벤트 리스너
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        console.log('로그인 폼 제출됨!');
+
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        firebase.auth().signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                alert("로그인 성공!");
+                document.getElementById('loginScreen').style.display = 'none';
+            })
+            .catch((error) => {
+                console.error("로그인 실패:", error);
+                alert(error.message);
+            });
+    });
+    
+    console.log('=== 간단한 이벤트 리스너 연결 완료 ===');
+    
+    // 회원가입 버튼 클릭 함수
+    window.handleSignupClick = function() {
+        console.log('handleSignupClick 함수 호출됨!');
+        
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPassword').value;
+        
+        console.log('회원가입 입력값:', { email, password: password ? '***' : 'empty' });
+        
+        if (!email || !password) {
+            alert('이메일과 비밀번호를 모두 입력하세요.');
+            return;
+        }
+        
+        if (password.length < 6) {
+            alert('비밀번호는 6자 이상이어야 합니다.');
+            return;
+        }
+        
+        // Firebase 연결 확인
+        if (typeof firebase === 'undefined') {
+            alert('Firebase가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            console.error('Firebase가 정의되지 않음');
+            return;
+        }
+        
+        if (!firebase.auth) {
+            alert('Firebase Auth가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            console.error('Firebase Auth가 정의되지 않음');
+            return;
+        }
+        
+        console.log('Firebase 회원가입 시도...');
+        console.log('Firebase 객체:', firebase);
+        console.log('Firebase Auth:', firebase.auth);
+        
+        try {
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    console.log('회원가입 성공:', userCredential.user);
+                    alert("회원가입 성공!");
+                    document.getElementById('loginScreen').style.display = 'none';
+                })
+                .catch((error) => {
+                    console.error("회원가입 실패:", error);
+                    alert(error.message);
+                });
+        } catch (error) {
+            console.error('Firebase 호출 중 오류:', error);
+            alert('Firebase 호출 중 오류가 발생했습니다: ' + error.message);
+        }
+    };
+    
+    // 로그인 버튼 클릭 함수
+    window.handleLoginClick = function() {
+        console.log('handleLoginClick 함수 호출됨!');
+        
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        console.log('로그인 입력값:', { email, password: password ? '***' : 'empty' });
+        
+        if (!email || !password) {
+            alert('이메일과 비밀번호를 모두 입력하세요.');
+            return;
+        }
+        
+        // Firebase 연결 확인
+        if (typeof firebase === 'undefined') {
+            alert('Firebase가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            console.error('Firebase가 정의되지 않음');
+            return;
+        }
+        
+        if (!firebase.auth) {
+            alert('Firebase Auth가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            console.error('Firebase Auth가 정의되지 않음');
+            return;
+        }
+        
+        console.log('Firebase 로그인 시도...');
+        console.log('Firebase 객체:', firebase);
+        console.log('Firebase Auth:', firebase.auth);
+        
+        try {
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    console.log('로그인 성공:', userCredential.user);
+                    alert("로그인 성공!");
+                    document.getElementById('loginScreen').style.display = 'none';
+                })
+                .catch((error) => {
+                    console.error("로그인 실패:", error);
+                    alert(error.message);
+                });
+        } catch (error) {
+            console.error('Firebase 호출 중 오류:', error);
+            alert('Firebase 호출 중 오류가 발생했습니다: ' + error.message);
+        }
+    };
+    
+    // 로그인/회원가입 버튼 이벤트 리스너 추가
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBtnMobile = document.getElementById('loginBtnMobile');
+    
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            console.log('데스크톱 로그인 버튼 클릭됨!');
+            openLoginModal();
+        });
+        console.log('데스크톱 로그인 버튼 이벤트 리스너 연결됨');
+    } else {
+        console.error('데스크톱 로그인 버튼을 찾을 수 없습니다!');
+    }
+    
+    if (loginBtnMobile) {
+        loginBtnMobile.addEventListener('click', () => {
+            console.log('모바일 로그인 버튼 클릭됨!');
+            openLoginModal();
+        });
+        console.log('모바일 로그인 버튼 이벤트 리스너 연결됨');
+    } else {
+        console.error('모바일 로그인 버튼을 찾을 수 없습니다!');
+    }
+    
+    // 전역 클릭 이벤트 감지 (디버깅용)
+    document.addEventListener('click', (event) => {
+        if (event.target.id === 'loginBtn' || event.target.id === 'loginBtnMobile') {
+            console.log('전역 클릭 감지 - 로그인 버튼 클릭됨:', event.target.id);
+        }
+    });
 });
 
 // 현재 로그인 상태 확인
