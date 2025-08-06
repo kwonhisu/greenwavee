@@ -1341,20 +1341,31 @@ async function handleLogin(event) {
       
       console.log('Firebase Auth 로그인 성공:', user.uid);
       
-      // Firestore에서 사용자 정보 가져오기
+      // Firestore에서 사용자 정보 가져오기 (uid로 먼저 시도)
       const usersRef = window.firebaseDb.collection('users');
-      const userQuery = usersRef.where('uid', '==', user.uid);
-      const userSnapshot = await userQuery.get();
+      let userQuery = usersRef.where('uid', '==', user.uid);
+      let userSnapshot = await userQuery.get();
+      
+      // uid로 찾지 못하면 email로 시도
+      if (userSnapshot.empty) {
+        console.log('uid로 사용자 찾기 실패, email로 시도');
+        userQuery = usersRef.where('email', '==', user.email);
+        userSnapshot = await userQuery.get();
+      }
       
       if (!userSnapshot.empty) {
         const userDoc = userSnapshot.docs[0];
         const userData = userDoc.data();
+        
+        console.log('Firestore에서 사용자 정보 찾음:', userData);
         
         currentUser = { 
           uid: user.uid,
           email: user.email,
           nickname: userData.nickname
         };
+        
+        console.log('현재 사용자 설정:', currentUser);
         
         // 로그인 상태 저장
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -1367,8 +1378,13 @@ async function handleLogin(event) {
         
         // 모바일 버튼도 동기화
         syncMobileLoginButtons();
+        
+        console.log('로그인 완료, UI 업데이트됨');
       } else {
-        alert('사용자 정보를 찾을 수 없습니다.');
+        console.log('Firestore에서 사용자 정보를 찾을 수 없음');
+        console.log('Firebase Auth UID:', user.uid);
+        console.log('Firebase Auth Email:', user.email);
+        alert('사용자 정보를 찾을 수 없습니다. 회원가입을 다시 해주세요.');
       }
     } catch (error) {
       console.error('Firebase Auth login error:', error);
@@ -1663,24 +1679,47 @@ async function getUserGameRecords(nickname, gameType) {
 }
 
 // 전체 게임 기록 가져오기 (상위 10개)
-function getTopGameRecords(gameType, limit = 10) {
+async function getTopGameRecords(gameType, limit = 10) {
+  // Firebase에서 전체 게임 기록 가져오기
+  if (firebaseAvailable && window.firebaseDb) {
+    try {
+      const scoresRef = window.firebaseDb.collection('scores');
+      const gameQuery = scoresRef.where('gameType', '==', gameType);
+      const snapshot = await gameQuery.get();
+      
+      const records = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        records.push({
+          nickname: data.nickname,
+          score: data.score,
+          date: data.timestamp,
+          timestamp: new Date(data.timestamp).getTime()
+        });
+      });
+      
+      // 점수 순으로 정렬하고 상위 기록 반환
+      records.sort((a, b) => b.score - a.score);
+      return records.slice(0, limit);
+    } catch (error) {
+      console.error('Firebase에서 전체 게임 기록 가져오기 실패:', error);
+    }
+  }
+  
+  // localStorage fallback
   if (!gameRecords[gameType]) return [];
-  
-  // 모든 기록을 점수 순으로 정렬
   const allRecords = [...gameRecords[gameType]].sort((a, b) => b.score - a.score);
-  
-  // 상위 기록만 반환
   return allRecords.slice(0, limit);
 }
 
 // 사용자의 최고 점수 가져오기
-function getUserBestScore(nickname, gameType) {
-  const userRecords = getUserGameRecords(nickname, gameType);
+async function getUserBestScore(nickname, gameType) {
+  const userRecords = await getUserGameRecords(nickname, gameType);
   return userRecords.length > 0 ? userRecords[0].score : 0;
 }
 
 // 게임 결과 모달 표시 개선
-function showGameResults(gameType) {
+async function showGameResults(gameType) {
   const modal = document.getElementById('gameResultsModal');
   const content = document.getElementById('gameResultsContent');
   const btnArea = document.getElementById('gameResultsBtnArea');
@@ -1699,8 +1738,8 @@ function showGameResults(gameType) {
     runner: '🏃'
   };
   
-  const topRecords = getTopGameRecords(gameType, 5);
-  const userRecords = getUserGameRecords(currentUser.nickname, gameType);
+  const topRecords = await getTopGameRecords(gameType, 5);
+  const userRecords = await getUserGameRecords(currentUser.nickname, gameType);
   const userBest = userRecords.length > 0 ? userRecords[0] : null;
   const currentScore = getCurrentGameScore(gameType);
   
@@ -1860,7 +1899,7 @@ function stopRunnerGame() {
     showGameResults('runner');
 }
 
-function dragGameOver() {
+async function dragGameOver() {
     // 게임 완전 종료
     dragGameActive = false;
     
@@ -1878,8 +1917,8 @@ function dragGameOver() {
     document.getElementById('dragGameResult').innerHTML = `<span class='text-rose-700 font-bold'>게임 종료! 최종 점수: ${dragGameScore}점</span>`;
     
     // 점수 저장 및 결과 표시
-    saveGameRecord('recycle', dragGameScore);
-    showGameResults('recycle');
+    await saveGameRecord('recycle', dragGameScore);
+    await showGameResults('recycle');
 }
 
 // 회원정보 모달에서 게임 기록 표시 개선
