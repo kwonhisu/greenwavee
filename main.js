@@ -12,11 +12,16 @@ async function testFirebaseConnection() {
       if (window.firebaseAuth && window.firebaseDb && typeof window.firebaseDb.collection === 'function') {
         firebaseAvailable = true;
         console.log('Firebase 연결 성공');
+        console.log('Firebase Auth 메서드:', Object.keys(window.firebaseAuth));
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 300));
       attempts++;
-      console.log(`Firebase 연결 시도 ${attempts}/${maxAttempts}`);
+      console.log(`Firebase 연결 시도 ${attempts}/${maxAttempts}`, {
+        auth: !!window.firebaseAuth,
+        db: !!window.firebaseDb,
+        dbCollection: typeof window.firebaseDb?.collection
+      });
     }
     
     firebaseAvailable = false;
@@ -1305,8 +1310,12 @@ function handleSignupLocalStorage(email, password, nickname) {
 // 로그인 처리
 async function handleLogin(event) {
   event.preventDefault();
+  console.log('로그인 함수 호출됨');
+  
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
+  
+  console.log('로그인 입력 데이터:', { email, password: '***' });
   
   if (!email || !password) {
     alert('이메일과 비밀번호를 모두 입력하세요.');
@@ -1314,13 +1323,21 @@ async function handleLogin(event) {
   }
   
   // Firebase 사용 가능 여부 재확인
+  console.log('Firebase Auth 상태:', {
+    firebaseAuth: !!window.firebaseAuth,
+    firebaseAvailable,
+    authMethods: window.firebaseAuth ? Object.keys(window.firebaseAuth) : 'N/A'
+  });
+  
   if (window.firebaseAuth && firebaseAvailable) {
     try {
       console.log('Firebase Auth 로그인 시도:', { email });
       
       // Firebase Auth로 로그인
+      console.log('Firebase Auth 메서드 호출 시도...');
       const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
       const user = userCredential.user;
+      console.log('Firebase Auth 로그인 성공, 사용자:', user.uid);
       
       console.log('Firebase Auth 로그인 성공:', user.uid);
       
@@ -1355,6 +1372,8 @@ async function handleLogin(event) {
       }
     } catch (error) {
       console.error('Firebase Auth login error:', error);
+      console.error('오류 코드:', error.code);
+      console.error('오류 메시지:', error.message);
       
       let errorMessage = '로그인에 실패했습니다.';
       if (error.code === 'auth/user-not-found') {
@@ -1363,6 +1382,10 @@ async function handleLogin(event) {
         errorMessage = '비밀번호가 올바르지 않습니다.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = '올바르지 않은 이메일 형식입니다.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
       }
       
       alert(errorMessage);
