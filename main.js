@@ -1207,12 +1207,11 @@ async function handleSignup(event) {
   
   const email = document.getElementById('signupEmail').value.trim();
   const password = document.getElementById('signupPassword').value.trim();
-  const nickname = document.getElementById('signupNickname').value.trim();
   
-  console.log('입력된 데이터:', { email, nickname });
+  console.log('입력된 데이터:', { email });
   
-  if (!email || !password || !nickname) {
-    alert('이메일, 비밀번호, 닉네임을 모두 입력하세요.');
+  if (!email || !password) {
+    alert('이메일과 비밀번호를 모두 입력하세요.');
     return;
   }
   
@@ -1234,6 +1233,9 @@ async function handleSignup(event) {
       
       console.log('Firebase Auth 계정 생성 성공:', user.uid);
       
+      // 닉네임은 이메일에서 추출
+      const nickname = email.split('@')[0] || '사용자';
+      
       // Firestore에 사용자 정보 저장
       const usersRef = window.firebaseDb.collection('users');
       const docRef = await usersRef.add({
@@ -1244,8 +1246,28 @@ async function handleSignup(event) {
       });
       
       console.log('Firestore 사용자 정보 저장 성공:', docRef.id);
-      alert('회원가입이 완료되었습니다! 이제 로그인해주세요.');
-      showLoginTab();
+      
+      // 회원가입 후 바로 로그인 상태로 설정
+      currentUser = { 
+        uid: user.uid,
+        email: email,
+        nickname: nickname
+      };
+      
+      // 로그인 상태 저장
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      
+      closeLoginModal();
+      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+      document.getElementById('userInfoBtn').classList.remove('hidden');
+      document.getElementById('loginBtn').classList.add('hidden');
+      showSection('home');
+      
+      // 모바일 버튼도 동기화
+      syncMobileLoginButtons();
+      
+      alert('회원가입이 완료되었습니다!');
+      console.log('회원가입 후 자동 로그인 완료:', currentUser);
     } catch (error) {
       console.error('Firebase Auth signup error:', error);
       
@@ -1263,13 +1285,13 @@ async function handleSignup(event) {
   } else {
     // localStorage fallback
     console.log('Firebase 사용 불가, localStorage 사용');
-    handleSignupLocalStorage(email, password, nickname);
+    handleSignupLocalStorage(email, password);
   }
 }
 
 // localStorage를 사용한 회원가입 처리
-function handleSignupLocalStorage(email, password, nickname) {
-  console.log('localStorage 회원가입 시작:', { email, nickname });
+function handleSignupLocalStorage(email, password) {
+  console.log('localStorage 회원가입 시작:', { email });
   
   let users = getUsers();
   console.log('기존 사용자 수:', users.length);
@@ -1281,12 +1303,8 @@ function handleSignupLocalStorage(email, password, nickname) {
     return;
   }
   
-  // 닉네임 중복 체크
-  if (users.find(u => u.nickname === nickname)) {
-    console.log('닉네임 중복 발견');
-    alert('이미 사용 중인 닉네임입니다.\n다른 닉네임을 사용해주세요.');
-    return;
-  }
+  // 닉네임은 이메일에서 추출
+  const nickname = email.split('@')[0] || '사용자';
   
   // 새 사용자 추가
   const newUser = { 
@@ -1341,51 +1359,36 @@ async function handleLogin(event) {
       
       console.log('Firebase Auth 로그인 성공:', user.uid);
       
-      // Firestore에서 사용자 정보 가져오기 (uid로 먼저 시도)
-      const usersRef = window.firebaseDb.collection('users');
-      let userQuery = usersRef.where('uid', '==', user.uid);
-      let userSnapshot = await userQuery.get();
+      // Firebase Auth만으로 로그인 처리 (Firestore는 게임 기록용)
+      console.log('Firebase Auth 로그인 성공, 사용자 정보:', {
+        uid: user.uid,
+        email: user.email
+      });
       
-      // uid로 찾지 못하면 email로 시도
-      if (userSnapshot.empty) {
-        console.log('uid로 사용자 찾기 실패, email로 시도');
-        userQuery = usersRef.where('email', '==', user.email);
-        userSnapshot = await userQuery.get();
-      }
+      // 닉네임은 email에서 추출하거나 기본값 사용
+      const nickname = user.email.split('@')[0] || '사용자';
       
-      if (!userSnapshot.empty) {
-        const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data();
-        
-        console.log('Firestore에서 사용자 정보 찾음:', userData);
-        
-        currentUser = { 
-          uid: user.uid,
-          email: user.email,
-          nickname: userData.nickname
-        };
-        
-        console.log('현재 사용자 설정:', currentUser);
-        
-        // 로그인 상태 저장
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        closeLoginModal();
-        document.getElementById('userInfoBtn').textContent = currentUser.nickname;
-        document.getElementById('userInfoBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        showSection('home');
-        
-        // 모바일 버튼도 동기화
-        syncMobileLoginButtons();
-        
-        console.log('로그인 완료, UI 업데이트됨');
-      } else {
-        console.log('Firestore에서 사용자 정보를 찾을 수 없음');
-        console.log('Firebase Auth UID:', user.uid);
-        console.log('Firebase Auth Email:', user.email);
-        alert('사용자 정보를 찾을 수 없습니다. 회원가입을 다시 해주세요.');
-      }
+      currentUser = { 
+        uid: user.uid,
+        email: user.email,
+        nickname: nickname
+      };
+      
+      console.log('현재 사용자 설정:', currentUser);
+      
+      // 로그인 상태 저장
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      
+      closeLoginModal();
+      document.getElementById('userInfoBtn').textContent = currentUser.nickname;
+      document.getElementById('userInfoBtn').classList.remove('hidden');
+      document.getElementById('loginBtn').classList.add('hidden');
+      showSection('home');
+      
+      // 모바일 버튼도 동기화
+      syncMobileLoginButtons();
+      
+      console.log('로그인 완료, UI 업데이트됨');
     } catch (error) {
       console.error('Firebase Auth login error:', error);
       console.error('오류 코드:', error.code);
