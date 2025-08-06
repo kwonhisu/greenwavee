@@ -33,6 +33,13 @@
       window.firebaseApp = firebase.app();
       window.firebaseDb = firebase.firestore();
       window.firebaseAuth = firebase.auth();
+      
+      // Firebase Auth 상태 확인
+      console.log('Firebase 초기화 완료:', {
+        app: !!window.firebaseApp,
+        db: !!window.firebaseDb,
+        auth: !!window.firebaseAuth
+      });
     </script>
 </head>
 <body>
